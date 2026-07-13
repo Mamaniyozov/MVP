@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-07-13T13:01:39.094Z",
+  "projectRoot": "D:\\MVP",
+  "structure": {
+    "hasPackageJson": false,
+    "hasTsConfig": false,
+    "hasClaudeConfig": true,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1783947699094
+}

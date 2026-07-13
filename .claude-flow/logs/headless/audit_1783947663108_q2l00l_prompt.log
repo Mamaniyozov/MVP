@@ -1,0 +1,1786 @@
+[2026-07-13T13:01:04.511Z] PROMPT
+============================================================
+Analyze this codebase for security vulnerabilities:
+- Check for hardcoded secrets (API keys, passwords)
+- Identify SQL injection risks
+- Find XSS vulnerabilities
+- Check for insecure dependencies
+- Identify authentication/authorization issues
+
+Provide a JSON report with:
+{
+  "vulnerabilities": [{ "severity": "high|medium|low", "file": "...", "line": N, "description": "..." }],
+  "riskScore": 0-100,
+  "recommendations": ["..."]
+}
+
+## Codebase Context
+
+--- .claude/helpers/github-safe.js (truncated) ---
+#!/usr/bin/env node
+/**
+ * Safe GitHub CLI Helper — v1.0.0
+ *
+ * Prevents injection issues when using `gh` commands with untrusted content
+ * (PR bodies, issue bodies, comment bodies) by routing the body through a
+ * temp file and using `--body-file` rather than interpolating into shell args.
+ *
+ * ADR-127 Phase 2 hardening:
+ *   - GITHUB_SAFE_VERSION exported for smoke assertions.
+ *   - Explicit 256KB body cap: rejects oversized bodies before any temp-file
+ *     write, matching the GitHub API `body` field limit.
+ *   - Strict error handling: all execSync calls inside try/catch; cleanup in
+ *     finally; non-zero exit on any error.
+ *   - GITHUB_SAFE_DRY_RUN=1 env-var skips the actual `gh` exec for testing.
+ *
+ * Usage:
+ *   ./github-safe.js issue comment 123 "Message with \`backticks\`"
+ *   ./github-safe.js pr create --title "Title" --body "Complex body"
+ */
+
+import { execSync, execFileSync } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { randomBytes } from 'crypto';
+
+// Version constant — asserted by smoke-github-safe-injection.mjs.
+export const GITHUB_SAFE_VERSION = '1.0.0';
+
+// Maximum body size allowed (bytes).  The GitHub API enforces 65536 chars for
+// issue/PR bodies; the CLI is more lenient but the 256KB limit is a
+// conservative safety cap that prevents accidental oversized writes.
+const MAX_BODY_BYTES = 256 * 1024;
+
+const args = process.argv.slice(2);
+
+if (args.length < 2) {
+  console.log(`
+Safe GitHub CLI Helper v${GITHUB_SAFE_VERSION}
+
+Usage:
+  ./github-safe.js issue comment <number> <body>
+  ./github-safe.js pr comment <number> <body>
+  ./github-safe.js issue create --title <title> --body <body>
+  ./github-safe.js pr create --title <title> --body <body>
+
+This helper prevents injection issues with special characters:
+- Backticks in code examples
+- Command substitution $(...)
+- Semicolons and other shell metacharacters
+- Oversized bodies (> 256 KB rejected)
+`);
+  process.exit(1);
+}
+
+const [command, subcommand, ...restArgs] = args;
+
+// Handle commands that need body content
+if ((command === 'issue' || command === 'pr') &&
+    (subcommand === 'comment' || subcommand === 'create')) {
+
+  let bodyIndex = -1;
+  let body = '';
+
+  if (subcommand === 'comment' && restArgs.length >= 2) {
+    // Simple format: github-safe.js issue comment 123 "body"
+    body = restArgs[1];
+    bodyIndex = 1;
+  } else {
+    // Flag format: --body "content"
+    bodyIndex = restArgs.indexOf('--body');
+    if (bodyIndex !== -1 && bodyIndex < restArgs.length - 1) {
+      body = restArgs[bodyIndex + 1];
+    }
+  }
+
+  if (body) {
+    // Enforce 256KB cap before any file I/O.
+    const bodyBytes = Buffer.byteLength(body, 'utf8');
+    if (bodyBytes > MAX_BODY_BYTES) {
+      console.error(
+        `[ERROR] Body exceeds maximum allowed size (${bodyBytes} bytes > ${MAX_BODY_BYTES} bytes). ` +
+        'GitHub API body fields are capped at 256KB. Truncate the body before passing it to github-safe.js.'
+      );
+      process.exit(1);
+    }
+
+    // Use temporary file for body content — never interpolate into argv.
+    const tmpFile = join(tmpdir(), `gh-body-${randomBytes(8).toString('hex')}.tmp`);
+
+    try {
+      writeFileSync(tmpFile, body, 'utf8');
+
+      // Build new command with --body-file
+      const newArgs = [...restArgs];
+      if (subcommand === 'comment' && bodyIndex === 1) {
+        // Replace positional body arg with --body-file
+        newArgs[1] = '--body-file';
+        newArgs.push(tmpFile);
+      } else if (bodyIndex !== -1) {
+        // Replace --body flag pair with --body-file
+        newArgs[bodyIndex] = '--body-file';
+        newArgs[bodyIndex + 1] = tmpFile;
+      }
+
+      // Skip actual gh exec in dry-run mode (used by smoke tests).
+      if (process.env.GITHUB_SAFE_DRY_RUN === '1') {
+        const ghArgs = [command, subcommand, ...newArgs];
+        console.log(`[DRY-RUN] gh ${ghArgs.join(' ')}`);
+        process.exit(0);
+      }
+
+      const ghArgv = [command, subcommand, ...newArgs];
+      console.log(`Executing: gh ${ghArgv.join(' ')}`);
+
+      // Use execFileSync to avoid shell interpolation — args are passed as an
+      // array so shell metacharacters in tmpFile path cannot be exploited.
+      execFileSync('gh', ghArgv, {
+        stdio: 'inherit',
+        timeout: 30000,
+      });
+
+    } catch (error) {
+      console.error('[ERROR]', error.message);
+      process.exit(1);
+    } finally {
+      // Always clean up the temp file.
+      try { unlinkSync(tmpFile); } catch (_) { /* ignore cleanup errors */ }
+    }
+  } else {
+    // No body content — execute normally (no injection risk for args).
+    if (process.env.GITHUB_SAFE_DRY_RUN === '1') {
+      console.log(`[DRY-RUN] gh ${args.join(' ')}`);
+      process.exit(0);
+    }
+    try {
+      execFileSync('gh', args, { stdio: 'inherit' });
+    } catch (error) {
+      console.error('[ERROR]', error.message);
+      process.exit(1);
+    }
+  }
+} else {
+  // Non-body commands — 
+
+--- .claude/helpers/memory.js ---
+#!/usr/bin/env node
+/**
+ * Claude Flow Memory Helper
+ * Simple key-value memory for cross-session context
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const MEMORY_DIR = path.join(process.cwd(), '.claude-flow', 'data');
+const MEMORY_FILE = path.join(MEMORY_DIR, 'memory.json');
+
+function loadMemory() {
+  try {
+    if (fs.existsSync(MEMORY_FILE)) {
+      return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return {};
+}
+
+function saveMemory(memory) {
+  fs.mkdirSync(MEMORY_DIR, { recursive: true });
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+}
+
+const commands = {
+  get: (key) => {
+    const memory = loadMemory();
+    const value = key ? memory[key] : memory;
+    console.log(JSON.stringify(value, null, 2));
+    return value;
+  },
+
+  set: (key, value) => {
+    if (!key) {
+      console.error('Key required');
+      return;
+    }
+    const memory = loadMemory();
+    memory[key] = value;
+    memory._updated = new Date().toISOString();
+    saveMemory(memory);
+    console.log(`Set: ${key}`);
+  },
+
+  delete: (key) => {
+    if (!key) {
+      console.error('Key required');
+      return;
+    }
+    const memory = loadMemory();
+    delete memory[key];
+    saveMemory(memory);
+    console.log(`Deleted: ${key}`);
+  },
+
+  clear: () => {
+    saveMemory({});
+    console.log('Memory cleared');
+  },
+
+  keys: () => {
+    const memory = loadMemory();
+    const keys = Object.keys(memory).filter(k => !k.startsWith('_'));
+    console.log(keys.join('\n'));
+    return keys;
+  },
+};
+
+// CLI
+const [,, command, key, ...valueParts] = process.argv;
+const value = valueParts.join(' ');
+
+if (command && commands[command]) {
+  commands[command](key, value);
+} else {
+  console.log('Usage: memory.js <get|set|delete|clear|keys> [key] [value]');
+}
+
+module.exports = commands;
+
+
+--- .claude/helpers/router.js ---
+#!/usr/bin/env node
+/**
+ * Claude Flow Agent Router
+ *
+ * Static keyword router that suggests an agent for a task description.
+ * NOTE: This is *not* a learned model. It is a heuristic table; "confidence"
+ * is reported as a heuristic prior, not a calibrated probability.
+ *
+ * #2257 fix: patterns are now word-boundary-anchored so short tokens like
+ * `cd`, `ci`, `ui`, `add`, `structure` no longer match inside unrelated
+ * words (`decision`, `infrastructure`, `address`, `addendum`). Default
+ * confidence dropped from 0.8 to 0.6 to better reflect that this is a
+ * static heuristic, not a learned classifier.
+ */
+
+const AGENT_CAPABILITIES = {
+  coder: ['code-generation', 'refactoring', 'debugging', 'implementation'],
+  tester: ['unit-testing', 'integration-testing', 'coverage', 'test-generation'],
+  reviewer: ['code-review', 'security-audit', 'quality-check', 'best-practices'],
+  researcher: ['web-search', 'documentation', 'analysis', 'summarization'],
+  architect: ['system-design', 'architecture', 'patterns', 'scalability'],
+  'backend-dev': ['api', 'database', 'server', 'authentication'],
+  'frontend-dev': ['ui', 'react', 'css', 'components'],
+  devops: ['ci-cd', 'docker', 'deployment', 'infrastructure'],
+};
+
+// Each entry is an array of tokens. Tokens are alternation-friendly:
+//   - multi-word phrases ("unit test") match as phrases
+//   - single tokens are wrapped with \b … \b word boundaries at match time
+const TASK_PATTERNS = [
+  // Code patterns
+  { tokens: ['implement', 'create', 'build', 'add', 'write code', 'refactor', 'debug'], agent: 'coder' },
+  { tokens: ['test', 'tests', 'spec', 'coverage', 'unit test', 'integration test'], agent: 'tester' },
+  { tokens: ['review', 'audit', 'check', 'validate', 'security'], agent: 'reviewer' },
+  { tokens: ['research', 'find', 'search', 'documentation', 'explore'], agent: 'researcher' },
+  { tokens: ['design', 'architect', 'architecture', 'structure', 'plan'], agent: 'architect' },
+
+  // Domain patterns
+  { tokens: ['api', 'endpoint', 'server', 'backend', 'database'], agent: 'backend-dev' },
+  { tokens: ['ui', 'frontend', 'component', 'react', 'css', 'style'], agent: 'frontend-dev' },
+  // 'cd' / 'ci' are kept but require word boundaries via \b — they will not
+  // match inside "decision" or "specific". 'cd' as a literal command in a
+  // task description ("set up cd pipeline") still matches.
+  { tokens: ['deploy', 'docker', 'ci', 'cd', 'ci/cd', 'pipeline', 'infrastructure', 'devops'], agent: 'devops' },
+];
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Build an anchored alternation regex from a token list.
+//   - multi-word phrases (containing whitespace or '/') match literally
+//   - single tokens are wrapped with \b boundaries so 'cd' won't match "decide"
+function buildPattern(tokens) {
+  const alternatives = tokens.map((tok) => {
+    const escaped = escapeRegex(tok.toLowerCase());
+    if (/\s|\//.test(tok)) {
+      // Phrase: whitespace/'/' on each side acts as a natural boundary
+      return escaped;
+    }
+    return `\\b${escaped}\\b`;
+  });
+  return new RegExp(`(?:${alternatives.join('|')})`, 'i');
+}
+
+const COMPILED_PATTERNS = TASK_PATTERNS.map((entry) => ({
+  agent: entry.agent,
+  tokens: entry.tokens,
+  regex: buildPattern(entry.tokens),
+}));
+
+function routeTask(task) {
+  const taskLower = String(task ?? '').toLowerCase();
+
+  for (const entry of COMPILED_PATTERNS) {
+    if (entry.regex.test(taskLower)) {
+      return {
+        agent: entry.agent,
+        // Heuristic prior, not a learned probability — see file header.
+        confidence: 0.6,
+        reason: `Matched keyword(s) from: ${entry.tokens.join('|')}`,
+      };
+    }
+  }
+
+  return {
+    agent: 'coder',
+    confidence: 0.3,
+    reason: 'Default routing - no specific keyword matched',
+  };
+}
+
+// CLI
+if (require.main === module) {
+  const task = process.argv.slice(2).join(' ');
+  if (task) {
+    const result = routeTask(task);
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log('Usage: router.js <task description>');
+    console.log('\nAvailable agents:', Object.keys(AGENT_CAPABILITIES).join(', '));
+  }
+}
+
+module.exports = { routeTask, AGENT_CAPABILITIES, TASK_PATTERNS, buildPattern };
+
+
+--- .claude/helpers/session.js ---
+#!/usr/bin/env node
+/**
+ * Claude Flow Session Manager
+ * Handles session lifecycle: start, restore, end
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const SESSION_DIR = path.join(process.cwd(), '.claude-flow', 'sessions');
+const SESSION_FILE = path.join(SESSION_DIR, 'current.json');
+
+// #2307: Atomic write — serialize to a per-process temp file, then rename()
+// into place. rename() is atomic on the same filesystem, so concurrent writers
+// (session-restore, metric, daemon workers, teammates) can't interleave partial
+// content. Without this, two non-atomic writeFileSync calls can race so that a
+// shorter payload overwrites a longer one in place, leaving the longer payload's
+// tail dangling past the end (valid JSON + trailing garbage = parse error).
+// Temp name includes process.pid so concurrent writers don't collide on it.
+// Same class as #1707 (metrics) / #1637 (daemon-state) — session.js was missed.
+function atomicWrite(file, data) {
+  const tmp = `${file}.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, file);
+}
+
+const commands = {
+  start: () => {
+    const sessionId = `session-${Date.now()}`;
+    const session = {
+      id: sessionId,
+      startedAt: new Date().toISOString(),
+      cwd: process.cwd(),
+      context: {},
+      metrics: {
+        edits: 0,
+        commands: 0,
+        tasks: 0,
+        errors: 0,
+      },
+    };
+
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+    atomicWrite(SESSION_FILE, JSON.stringify(session, null, 2));
+
+    console.log(`Session started: ${sessionId}`);
+    return session;
+  },
+
+  restore: () => {
+    if (!fs.existsSync(SESSION_FILE)) {
+      console.log('No session to restore');
+      return null;
+    }
+
+    let session;
+    try {
+      session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+    } catch (e) {
+      // #2307: corrupted session file (e.g. from a pre-atomic-write race).
+      // Don't throw — start a fresh session so the hook recovers cleanly.
+      console.log(`Session file corrupted (${e.message}); starting fresh`);
+      return commands.start();
+    }
+    session.restoredAt = new Date().toISOString();
+    atomicWrite(SESSION_FILE, JSON.stringify(session, null, 2));
+
+    console.log(`Session restored: ${session.id}`);
+    return session;
+  },
+
+  end: () => {
+    if (!fs.existsSync(SESSION_FILE)) {
+      console.log('No active session');
+      return null;
+    }
+
+    const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+    session.endedAt = new Date().toISOString();
+    session.duration = Date.now() - new Date(session.startedAt).getTime();
+
+    // Archive session
+    const archivePath = path.join(SESSION_DIR, `${session.id}.json`);
+    atomicWrite(archivePath, JSON.stringify(session, null, 2));
+    fs.unlinkSync(SESSION_FILE);
+
+    console.log(`Session ended: ${session.id}`);
+    console.log(`Duration: ${Math.round(session.duration / 1000 / 60)} minutes`);
+    console.log(`Metrics: ${JSON.stringify(session.metrics)}`);
+
+    return session;
+  },
+
+  status: () => {
+    if (!fs.existsSync(SESSION_FILE)) {
+      console.log('No active session');
+      return null;
+    }
+
+    const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+    const duration = Date.now() - new Date(session.startedAt).getTime();
+
+    console.log(`Session: ${session.id}`);
+    console.log(`Started: ${session.startedAt}`);
+    console.log(`Duration: ${Math.round(duration / 1000 / 60)} minutes`);
+    console.log(`Metrics: ${JSON.stringify(session.metrics)}`);
+
+    return session;
+  },
+
+  update: (key, value) => {
+    if (!fs.existsSync(SESSION_FILE)) {
+      console.log('No active session');
+      return null;
+    }
+
+    const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+    session.context[key] = value;
+    session.updatedAt = new Date().toISOString();
+    atomicWrite(SESSION_FILE, JSON.stringify(session, null, 2));
+
+    return session;
+  },
+
+  get: (key) => {
+    if (!fs.existsSync(SESSION_FILE)) return null;
+    try {
+      const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+      return key ? (session.context || {})[key] : session.context;
+    } catch { return null; }
+  },
+
+  metric: (name) => {
+    if (!fs.existsSync(SESSION_FILE)) {
+      return null;
+    }
+
+    const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+    if (session.metrics[name] !== undefined) {
+      session.metrics[name]++;
+      atomicWrite(SESSION_FILE, JSON.stringify(session, null, 2));
+    }
+
+    return session;
+  },
+};
+
+// CLI
+const [,, command, ...args] = process.argv;
+
+if (command && commands[command]) {
+  commands[command](...args);
+} else {
+  console.log('Usage: session.js <start|restore|end|status|update|metric> [args]');
+}
+
+module.exports = commands;
+
+
+--- .claude/helpers/statusline.js (truncated) ---
+#!/usr/bin/env node
+/**
+ * RuFlo Statusline Generator
+ * Displays real-time V3 implementation progress and system status.
+ * Version is read from the installed @claude-flow/cli package.json at
+ * runtime — #1892 fix: previously hardcoded to V3.5 which drifted from
+ * the actual installed alpha series.
+ *
+ * Usage: node statusline.js [--json] [--compact]
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync, execFileSync } = require('child_process');
+
+// #1892 — derive RuFlo banner version from the installed cli package.json
+// so the statusline never drifts from `ruflo doctor`. Falls back to a
+// generic "RuFlo" label only if every resolution path fails.
+function resolveBannerVersion() {
+  const candidates = [
+    // Local-checkout / monorepo case
+    path.join(__dirname, '..', '..', 'package.json'),
+    // npm-installed-as-dep case
+    path.join(__dirname, '..', '..', '..', '@claude-flow', 'cli', 'package.json'),
+    // npm-installed-globally case
+    path.join(__dirname, '..', '..', '..', 'cli', 'package.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      if (pkg.name && pkg.name.includes('claude-flow') && typeof pkg.version === 'string') {
+        // Render as "V<major>.<minor>" so the banner stays compact —
+        // patch+pre-release detail still shows under `doctor`.
+        const m = pkg.version.match(/^(\d+)\.(\d+)/);
+        if (m) return `V${m[1]}.${m[2]}`;
+        return `V${pkg.version}`;
+      }
+    } catch {/* try next */}
+  }
+  return ''; // empty → header just says "RuFlo"
+}
+const BANNER_VERSION = resolveBannerVersion();
+
+// Configuration
+const CONFIG = {
+  enabled: true,
+  showProgress: true,
+  showSecurity: true,
+  showSwarm: true,
+  showHooks: true,
+  showPerformance: true,
+  refreshInterval: 30000,
+  maxAgents: 15,
+  topology: 'hierarchical-mesh',
+};
+
+// ANSI colors
+const c = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  red: '\x1b[0;31m',
+  green: '\x1b[0;32m',
+  yellow: '\x1b[0;33m',
+  blue: '\x1b[0;34m',
+  purple: '\x1b[0;35m',
+  cyan: '\x1b[0;36m',
+  brightRed: '\x1b[1;31m',
+  brightGreen: '\x1b[1;32m',
+  brightYellow: '\x1b[1;33m',
+  brightBlue: '\x1b[1;34m',
+  brightPurple: '\x1b[1;35m',
+  brightCyan: '\x1b[1;36m',
+  brightWhite: '\x1b[1;37m',
+};
+
+// Get user info
+function getUserInfo() {
+  let name = 'user';
+  let gitBranch = '';
+  let modelName = 'Opus 4.6 (1M context)';
+
+  // audit_1776853149979: previously used execSync with a shell string for git
+  // commands. Switched to execFileSync('git', argv) so there is no shell
+  // interpretation — eliminates the *class* of injection regardless of whether
+  // user input ever reaches these args (defense in depth). Errors are caught
+  // and the defaults above remain.
+  try {
+    name = execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || 'user';
+  } catch { /* not in a repo / no name set — keep default */ }
+  try {
+    gitBranch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch { /* not in a repo — keep empty */ }
+
+  return { name, gitBranch, modelName };
+}
+
+// Get learning stats from memory database
+function getLearningStats() {
+  const memoryPaths = [
+    path.join(process.cwd(), '.swarm', 'memory.db'),
+    path.join(process.cwd(), '.claude', 'memory.db'),
+    path.join(process.cwd(), 'data', 'memory.db'),
+  ];
+
+  let patterns = 0;
+  let sessions = 0;
+  let trajectories = 0;
+
+  // Try to read from sqlite database
+  for (const dbPath of memoryPaths) {
+    if (fs.existsSync(dbPath)) {
+      try {
+        // Count entries in memory file (rough estimate from file size)
+        const stats = fs.statSync(dbPath);
+        const sizeKB = stats.size / 1024;
+        // Estimate: ~2KB per pattern on average
+        patterns = Math.floor(sizeKB / 2);
+        sessions = Math.max(1, Math.floor(patterns / 10));
+        trajectories = Math.floor(patterns / 5);
+        break;
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }
+
+  // Also check for session files
+  const sessionsPath = path.join(process.cwd(), '.claude', 'sessions');
+  if (fs.existsSync(sessionsPath)) {
+    try {
+      const sessionFiles = fs.readdirSync(sessionsPath).filter(f => f.endsWith('.json'));
+      sessions = Math.max(sessions, sessionFiles.length);
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  return { patterns, sessions, trajectories };
+}
+
+// Get V3 progress from learning state (grows as system learns)
+function getV3Progress() {
+  const learning = getLearningStats();
+
+  // DDD progress based on actual learned patterns
+  // New install: 0 patterns = 0/5 domains, 0% DDD
+  // As patterns grow: 10+ patterns = 1 domain, 50+ = 2, 100+ = 3, 200+ = 4, 500+ = 5
+  let domainsCompleted = 0;
+  if (learning.patterns >= 500) domainsCompleted = 5;
+  else if (learning.patterns >= 200) domainsCompleted = 4;
+  else if (learning.patterns >= 1
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/actions.js (truncated) ---
+/*global gettext, interpolate, ngettext*/
+'use strict';
+{
+    function show(selector) {
+        document.querySelectorAll(selector).forEach(function(el) {
+            el.classList.remove('hidden');
+        });
+    }
+
+    function hide(selector) {
+        document.querySelectorAll(selector).forEach(function(el) {
+            el.classList.add('hidden');
+        });
+    }
+
+    function showQuestion(options) {
+        hide(options.acrossClears);
+        show(options.acrossQuestions);
+        hide(options.allContainer);
+    }
+
+    function showClear(options) {
+        show(options.acrossClears);
+        hide(options.acrossQuestions);
+        document.querySelector(options.actionContainer).classList.remove(options.selectedClass);
+        show(options.allContainer);
+        hide(options.counterContainer);
+    }
+
+    function reset(options) {
+        hide(options.acrossClears);
+        hide(options.acrossQuestions);
+        hide(options.allContainer);
+        show(options.counterContainer);
+    }
+
+    function clearAcross(options) {
+        reset(options);
+        const acrossInputs = document.querySelectorAll(options.acrossInput);
+        acrossInputs.forEach(function(acrossInput) {
+            acrossInput.value = 0;
+        });
+        document.querySelector(options.actionContainer).classList.remove(options.selectedClass);
+    }
+
+    function checker(actionCheckboxes, options, checked) {
+        if (checked) {
+            showQuestion(options);
+        } else {
+            reset(options);
+        }
+        actionCheckboxes.forEach(function(el) {
+            el.checked = checked;
+            el.closest('tr').classList.toggle(options.selectedClass, checked);
+        });
+    }
+
+    function updateCounter(actionCheckboxes, options) {
+        const sel = Array.from(actionCheckboxes).filter(function(el) {
+            return el.checked;
+        }).length;
+        const counter = document.querySelector(options.counterContainer);
+        // data-actions-icnt is defined in the generated HTML
+        // and contains the total amount of objects in the queryset
+        const actions_icnt = Number(counter.dataset.actionsIcnt);
+        counter.textContent = interpolate(
+            ngettext('%(sel)s of %(cnt)s selected', '%(sel)s of %(cnt)s selected', sel), {
+                sel: sel,
+                cnt: actions_icnt
+            }, true);
+        const allToggle = document.getElementById(options.allToggleId);
+        allToggle.checked = sel === actionCheckboxes.length;
+        if (allToggle.checked) {
+            showQuestion(options);
+        } else {
+            clearAcross(options);
+        }
+    }
+
+    const defaults = {
+        actionContainer: "div.actions",
+        counterContainer: "span.action-counter",
+        allContainer: "div.actions span.all",
+        acrossInput: "div.actions input.select-across",
+        acrossQuestions: "div.actions span.question",
+        acrossClears: "div.actions span.clear",
+        allToggleId: "action-toggle",
+        selectedClass: "selected"
+    };
+
+    window.Actions = function(actionCheckboxes, options) {
+        options = Object.assign({}, defaults, options);
+        let list_editable_changed = false;
+        let lastChecked = null;
+        let shiftPressed = false;
+
+        document.addEventListener('keydown', (event) => {
+            shiftPressed = event.shiftKey;
+        });
+
+        document.addEventListener('keyup', (event) => {
+            shiftPressed = event.shiftKey;
+        });
+
+        document.getElementById(options.allToggleId).addEventListener('click', function(event) {
+            checker(actionCheckboxes, options, this.checked);
+            updateCounter(actionCheckboxes, options);
+        });
+
+        document.querySelectorAll(options.acrossQuestions + " a").forEach(function(el) {
+            el.addEventListener('click', function(event) {
+                event.preventDefault();
+                const acrossInputs = document.querySelectorAll(options.acrossInput);
+                acrossInputs.forEach(function(acrossInput) {
+                    acrossInput.value = 1;
+                });
+                showClear(options);
+            });
+        });
+
+        document.querySelectorAll(options.acrossClears + " a").forEach(function(el) {
+            el.addEventListener('click', function(event) {
+                event.preventDefault();
+                document.getElementById(options.allToggleId).checked = false;
+                clearAcross(options);
+                checker(actionCheckboxes, options, false);
+                updateCounter(actionCheckboxes, options);
+            });
+        });
+
+        function affectedCheckboxes(target, withModifier) {
+            const multiSelect = (lastChecked && withModifier && lastChecked !== target);
+            if (!multiSelect) {
+                return [target];
+            }
+            const checkboxes = Array.from(actionCheckboxes);
+            const targetIndex = checkboxes.findIndex(el => el === target);
+            const lastCh
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/admin/DateTimeShortcuts.js (truncated) ---
+/*global Calendar, findPosX, findPosY, get_format, gettext, gettext_noop, interpolate, ngettext, quickElement*/
+// Inserts shortcut buttons after all of the following:
+//     <input type="text" class="vDateField">
+//     <input type="text" class="vTimeField">
+'use strict';
+{
+    const DateTimeShortcuts = {
+        calendars: [],
+        calendarInputs: [],
+        clockInputs: [],
+        clockHours: {
+            default_: [
+                [gettext_noop('Now'), -1],
+                [gettext_noop('Midnight'), 0],
+                [gettext_noop('6 a.m.'), 6],
+                [gettext_noop('Noon'), 12],
+                [gettext_noop('6 p.m.'), 18]
+            ]
+        },
+        dismissClockFunc: [],
+        dismissCalendarFunc: [],
+        calendarDivName1: 'calendarbox', // name of calendar <div> that gets toggled
+        calendarDivName2: 'calendarin', // name of <div> that contains calendar
+        calendarLinkName: 'calendarlink', // name of the link that is used to toggle
+        clockDivName: 'clockbox', // name of clock <div> that gets toggled
+        clockLinkName: 'clocklink', // name of the link that is used to toggle
+        shortCutsClass: 'datetimeshortcuts', // class of the clock and cal shortcuts
+        timezoneWarningClass: 'timezonewarning', // class of the warning for timezone mismatch
+        timezoneOffset: 0,
+        init: function() {
+            const serverOffset = document.body.dataset.adminUtcOffset;
+            if (serverOffset) {
+                const localOffset = new Date().getTimezoneOffset() * -60;
+                DateTimeShortcuts.timezoneOffset = localOffset - serverOffset;
+            }
+
+            for (const inp of document.getElementsByTagName('input')) {
+                if (inp.type === 'text' && inp.classList.contains('vTimeField')) {
+                    DateTimeShortcuts.addClock(inp);
+                    DateTimeShortcuts.addTimezoneWarning(inp);
+                }
+                else if (inp.type === 'text' && inp.classList.contains('vDateField')) {
+                    DateTimeShortcuts.addCalendar(inp);
+                    DateTimeShortcuts.addTimezoneWarning(inp);
+                }
+            }
+        },
+        // Return the current time while accounting for the server timezone.
+        now: function() {
+            const serverOffset = document.body.dataset.adminUtcOffset;
+            if (serverOffset) {
+                const localNow = new Date();
+                const localOffset = localNow.getTimezoneOffset() * -60;
+                localNow.setTime(localNow.getTime() + 1000 * (serverOffset - localOffset));
+                return localNow;
+            } else {
+                return new Date();
+            }
+        },
+        // Add a warning when the time zone in the browser and backend do not match.
+        addTimezoneWarning: function(inp) {
+            const warningClass = DateTimeShortcuts.timezoneWarningClass;
+            let timezoneOffset = DateTimeShortcuts.timezoneOffset / 3600;
+
+            // Only warn if there is a time zone mismatch.
+            if (!timezoneOffset) {
+                return;
+            }
+
+            // Check if warning is already there.
+            if (inp.parentNode.querySelectorAll('.' + warningClass).length) {
+                return;
+            }
+
+            let message;
+            if (timezoneOffset > 0) {
+                message = ngettext(
+                    'Note: You are %s hour ahead of server time.',
+                    'Note: You are %s hours ahead of server time.',
+                    timezoneOffset
+                );
+            }
+            else {
+                timezoneOffset *= -1;
+                message = ngettext(
+                    'Note: You are %s hour behind server time.',
+                    'Note: You are %s hours behind server time.',
+                    timezoneOffset
+                );
+            }
+            message = interpolate(message, [timezoneOffset]);
+
+            const warning = document.createElement('div');
+            warning.classList.add('help', warningClass);
+            warning.textContent = message;
+            inp.parentNode.appendChild(warning);
+        },
+        // Add clock widget to a given field
+        addClock: function(inp) {
+            const num = DateTimeShortcuts.clockInputs.length;
+            DateTimeShortcuts.clockInputs[num] = inp;
+            DateTimeShortcuts.dismissClockFunc[num] = function() { DateTimeShortcuts.dismissClock(num); return true; };
+
+            // Shortcut links (clock icon and "Now" link)
+            const shortcuts_span = document.createElement('span');
+            shortcuts_span.className = DateTimeShortcuts.shortCutsClass;
+            inp.parentNode.insertBefore(shortcuts_span, inp.nextSibling);
+            const now_link = document.createElement('a');
+            now_link.href = "#";
+            now_link.textContent = gettext('Now');
+            now_link.addEventListener('click', function(e) {
+                e.preventDefault();
+ 
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/admin/RelatedObjectLookups.js (truncated) ---
+/*global SelectBox, interpolate*/
+// Handles related-objects functionality: lookup link for raw_id_fields
+// and Add Another links.
+'use strict';
+{
+    const $ = django.jQuery;
+    let popupIndex = 0;
+    const relatedWindows = [];
+
+    function dismissChildPopups() {
+        relatedWindows.forEach(function(win) {
+            if(!win.closed) {
+                win.dismissChildPopups();
+                win.close();    
+            }
+        });
+    }
+
+    function setPopupIndex() {
+        if(document.getElementsByName("_popup").length > 0) {
+            const index = window.name.lastIndexOf("__") + 2;
+            popupIndex = parseInt(window.name.substring(index));   
+        } else {
+            popupIndex = 0;
+        }
+    }
+
+    function addPopupIndex(name) {
+        return name + "__" + (popupIndex + 1);
+    }
+
+    function removePopupIndex(name) {
+        return name.replace(new RegExp("__" + (popupIndex + 1) + "$"), '');
+    }
+
+    function showAdminPopup(triggeringLink, name_regexp, add_popup) {
+        const name = addPopupIndex(triggeringLink.id.replace(name_regexp, ''));
+        const href = new URL(triggeringLink.href);
+        if (add_popup) {
+            href.searchParams.set('_popup', 1);
+        }
+        const win = window.open(href, name, 'height=500,width=800,resizable=yes,scrollbars=yes');
+        relatedWindows.push(win);
+        win.focus();
+        return false;
+    }
+
+    function showRelatedObjectLookupPopup(triggeringLink) {
+        return showAdminPopup(triggeringLink, /^lookup_/, true);
+    }
+
+    function dismissRelatedLookupPopup(win, chosenId) {
+        const name = removePopupIndex(win.name);
+        const elem = document.getElementById(name);
+        if (elem.classList.contains('vManyToManyRawIdAdminField') && elem.value) {
+            elem.value += ',' + chosenId;
+        } else {
+            document.getElementById(name).value = chosenId;
+        }
+        const index = relatedWindows.indexOf(win);
+        if (index > -1) {
+            relatedWindows.splice(index, 1);
+        }
+        win.close();
+    }
+
+    function showRelatedObjectPopup(triggeringLink) {
+        return showAdminPopup(triggeringLink, /^(change|add|delete)_/, false);
+    }
+
+    function updateRelatedObjectLinks(triggeringLink) {
+        const $this = $(triggeringLink);
+        const siblings = $this.nextAll('.view-related, .change-related, .delete-related');
+        if (!siblings.length) {
+            return;
+        }
+        const value = $this.val();
+        if (value) {
+            siblings.each(function() {
+                const elm = $(this);
+                elm.attr('href', elm.attr('data-href-template').replace('__fk__', value));
+                elm.removeAttr('aria-disabled');
+            });
+        } else {
+            siblings.removeAttr('href');
+            siblings.attr('aria-disabled', true);
+        }
+    }
+
+    function updateRelatedSelectsOptions(currentSelect, win, objId, newRepr, newId) {
+        // After create/edit a model from the options next to the current
+        // select (+ or :pencil:) update ForeignKey PK of the rest of selects
+        // in the page.
+
+        const path = win.location.pathname;
+        // Extract the model from the popup url '.../<model>/add/' or
+        // '.../<model>/<id>/change/' depending the action (add or change).
+        const modelName = path.split('/')[path.split('/').length - (objId ? 4 : 3)];
+        // Exclude autocomplete selects.
+        const selectsRelated = document.querySelectorAll(`[data-model-ref="${modelName}"] select:not(.admin-autocomplete)`);
+
+        selectsRelated.forEach(function(select) {
+            if (currentSelect === select) {
+                return;
+            }
+
+            let option = select.querySelector(`option[value="${objId}"]`);
+
+            if (!option) {
+                option = new Option(newRepr, newId);
+                select.options.add(option);
+                return;
+            }
+
+            option.textContent = newRepr;
+            option.value = newId;
+        });
+    }
+
+    function dismissAddRelatedObjectPopup(win, newId, newRepr) {
+        const name = removePopupIndex(win.name);
+        const elem = document.getElementById(name);
+        if (elem) {
+            const elemName = elem.nodeName.toUpperCase();
+            if (elemName === 'SELECT') {
+                elem.options[elem.options.length] = new Option(newRepr, newId, true, true);
+                updateRelatedSelectsOptions(elem, win, null, newRepr, newId);
+            } else if (elemName === 'INPUT') {
+                if (elem.classList.contains('vManyToManyRawIdAdminField') && elem.value) {
+                    elem.value += ',' + newId;
+                } else {
+                    elem.value = newId;
+                }
+            }
+            // Trigger a change event to update related links if required.
+            $(elem).trigger('change');
+        } else {
+            const toId = name + "_to";
+            const o = new Option(newRepr, n
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/autocomplete.js ---
+'use strict';
+{
+    const $ = django.jQuery;
+
+    $.fn.djangoAdminSelect2 = function() {
+        $.each(this, function(i, element) {
+            $(element).select2({
+                ajax: {
+                    data: (params) => {
+                        return {
+                            term: params.term,
+                            page: params.page,
+                            app_label: element.dataset.appLabel,
+                            model_name: element.dataset.modelName,
+                            field_name: element.dataset.fieldName
+                        };
+                    }
+                }
+            });
+        });
+        return this;
+    };
+
+    $(function() {
+        // Initialize all autocomplete widgets except the one in the template
+        // form used when a new formset is added.
+        $('.admin-autocomplete').not('[name*=__prefix__]').djangoAdminSelect2();
+    });
+
+    document.addEventListener('formset:added', (event) => {
+        $(event.target).find('.admin-autocomplete').djangoAdminSelect2();
+    });
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/calendar.js (truncated) ---
+/*global gettext, pgettext, get_format, quickElement, removeChildren*/
+/*
+calendar.js - Calendar functions by Adrian Holovaty
+depends on core.js for utility functions like removeChildren or quickElement
+*/
+'use strict';
+{
+    // CalendarNamespace -- Provides a collection of HTML calendar-related helper functions
+    const CalendarNamespace = {
+        monthsOfYear: [
+            gettext('January'),
+            gettext('February'),
+            gettext('March'),
+            gettext('April'),
+            gettext('May'),
+            gettext('June'),
+            gettext('July'),
+            gettext('August'),
+            gettext('September'),
+            gettext('October'),
+            gettext('November'),
+            gettext('December')
+        ],
+        monthsOfYearAbbrev: [
+            pgettext('abbrev. month January', 'Jan'),
+            pgettext('abbrev. month February', 'Feb'),
+            pgettext('abbrev. month March', 'Mar'),
+            pgettext('abbrev. month April', 'Apr'),
+            pgettext('abbrev. month May', 'May'),
+            pgettext('abbrev. month June', 'Jun'),
+            pgettext('abbrev. month July', 'Jul'),
+            pgettext('abbrev. month August', 'Aug'),
+            pgettext('abbrev. month September', 'Sep'),
+            pgettext('abbrev. month October', 'Oct'),
+            pgettext('abbrev. month November', 'Nov'),
+            pgettext('abbrev. month December', 'Dec')
+        ],
+        daysOfWeek: [
+            gettext('Sunday'),
+            gettext('Monday'),
+            gettext('Tuesday'),
+            gettext('Wednesday'),
+            gettext('Thursday'),
+            gettext('Friday'),
+            gettext('Saturday')
+        ],
+        daysOfWeekAbbrev: [
+            pgettext('abbrev. day Sunday', 'Sun'),
+            pgettext('abbrev. day Monday', 'Mon'),
+            pgettext('abbrev. day Tuesday', 'Tue'),
+            pgettext('abbrev. day Wednesday', 'Wed'),
+            pgettext('abbrev. day Thursday', 'Thur'),
+            pgettext('abbrev. day Friday', 'Fri'),
+            pgettext('abbrev. day Saturday', 'Sat')
+        ],
+        daysOfWeekInitial: [
+            pgettext('one letter Sunday', 'S'),
+            pgettext('one letter Monday', 'M'),
+            pgettext('one letter Tuesday', 'T'),
+            pgettext('one letter Wednesday', 'W'),
+            pgettext('one letter Thursday', 'T'),
+            pgettext('one letter Friday', 'F'),
+            pgettext('one letter Saturday', 'S')
+        ],
+        firstDayOfWeek: parseInt(get_format('FIRST_DAY_OF_WEEK')),
+        isLeapYear: function(year) {
+            return (((year % 4) === 0) && ((year % 100) !== 0 ) || ((year % 400) === 0));
+        },
+        getDaysInMonth: function(month, year) {
+            let days;
+            if (month === 1 || month === 3 || month === 5 || month === 7 || month === 8 || month === 10 || month === 12) {
+                days = 31;
+            }
+            else if (month === 4 || month === 6 || month === 9 || month === 11) {
+                days = 30;
+            }
+            else if (month === 2 && CalendarNamespace.isLeapYear(year)) {
+                days = 29;
+            }
+            else {
+                days = 28;
+            }
+            return days;
+        },
+        draw: function(month, year, div_id, callback, selected) { // month = 1-12, year = 1-9999
+            const today = new Date();
+            const todayDay = today.getDate();
+            const todayMonth = today.getMonth() + 1;
+            const todayYear = today.getFullYear();
+            let todayClass = '';
+
+            // Use UTC functions here because the date field does not contain time
+            // and using the UTC function variants prevent the local time offset
+            // from altering the date, specifically the day field.  For example:
+            //
+            // ```
+            // var x = new Date('2013-10-02');
+            // var day = x.getDate();
+            // ```
+            //
+            // The day variable above will be 1 instead of 2 in, say, US Pacific time
+            // zone.
+            let isSelectedMonth = false;
+            if (typeof selected !== 'undefined') {
+                isSelectedMonth = (selected.getUTCFullYear() === year && (selected.getUTCMonth() + 1) === month);
+            }
+
+            month = parseInt(month);
+            year = parseInt(year);
+            const calDiv = document.getElementById(div_id);
+            removeChildren(calDiv);
+            const calTable = document.createElement('table');
+            quickElement('caption', calTable, CalendarNamespace.monthsOfYear[month - 1] + ' ' + year);
+            const tableBody = quickElement('tbody', calTable);
+
+            // Draw days-of-week header
+            let tableRow = quickElement('tr', tableBody);
+            for (let i = 0; i < 7; i++) {
+                quickElement('th', tableRow, CalendarNamespace.daysOfWeekInitial[(i + CalendarNamespace.firstDayOfWeek) % 7]);
+            }
+
+            const startingP
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/cancel.js ---
+'use strict';
+{
+    // Call function fn when the DOM is loaded and ready. If it is already
+    // loaded, call the function now.
+    // http://youmightnotneedjquery.com/#ready
+    function ready(fn) {
+        if (document.readyState !== 'loading') {
+            fn();
+        } else {
+            document.addEventListener('DOMContentLoaded', fn);
+        }
+    }
+
+    ready(function() {
+        function handleClick(event) {
+            event.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('_popup')) {
+                window.close(); // Close the popup.
+            } else {
+                window.history.back(); // Otherwise, go back.
+            }
+        }
+
+        document.querySelectorAll('.cancel-link').forEach(function(el) {
+            el.addEventListener('click', handleClick);
+        });
+    });
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/change_form.js ---
+'use strict';
+{
+    const inputTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'];
+    const modelName = document.getElementById('django-admin-form-add-constants').dataset.modelName;
+    if (modelName) {
+        const form = document.getElementById(modelName + '_form');
+        for (const element of form.elements) {
+            // HTMLElement.offsetParent returns null when the element is not
+            // rendered.
+            if (inputTags.includes(element.tagName) && !element.disabled && element.offsetParent) {
+                element.focus();
+                break;
+            }
+        }
+    }
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/collapse.js ---
+/*global gettext*/
+'use strict';
+{
+    window.addEventListener('load', function() {
+        // Add anchor tag for Show/Hide link
+        const fieldsets = document.querySelectorAll('fieldset.collapse');
+        for (const [i, elem] of fieldsets.entries()) {
+            // Don't hide if fields in this fieldset have errors
+            if (elem.querySelectorAll('div.errors, ul.errorlist').length === 0) {
+                elem.classList.add('collapsed');
+                const h2 = elem.querySelector('h2');
+                const link = document.createElement('a');
+                link.id = 'fieldsetcollapser' + i;
+                link.className = 'collapse-toggle';
+                link.href = '#';
+                link.textContent = gettext('Show');
+                h2.appendChild(document.createTextNode(' ('));
+                h2.appendChild(link);
+                h2.appendChild(document.createTextNode(')'));
+            }
+        }
+        // Add toggle to hide/show anchor tag
+        const toggleFunc = function(ev) {
+            if (ev.target.matches('.collapse-toggle')) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const fieldset = ev.target.closest('fieldset');
+                if (fieldset.classList.contains('collapsed')) {
+                    // Show
+                    ev.target.textContent = gettext('Hide');
+                    fieldset.classList.remove('collapsed');
+                } else {
+                    // Hide
+                    ev.target.textContent = gettext('Show');
+                    fieldset.classList.add('collapsed');
+                }
+            }
+        };
+        document.querySelectorAll('fieldset.module').forEach(function(el) {
+            el.addEventListener('click', toggleFunc);
+        });
+    });
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/core.js (truncated) ---
+// Core JavaScript helper functions
+'use strict';
+
+// quickElement(tagType, parentReference [, textInChildNode, attribute, attributeValue ...]);
+function quickElement() {
+    const obj = document.createElement(arguments[0]);
+    if (arguments[2]) {
+        const textNode = document.createTextNode(arguments[2]);
+        obj.appendChild(textNode);
+    }
+    const len = arguments.length;
+    for (let i = 3; i < len; i += 2) {
+        obj.setAttribute(arguments[i], arguments[i + 1]);
+    }
+    arguments[1].appendChild(obj);
+    return obj;
+}
+
+// "a" is reference to an object
+function removeChildren(a) {
+    while (a.hasChildNodes()) {
+        a.removeChild(a.lastChild);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Find-position functions by PPK
+// See https://www.quirksmode.org/js/findpos.html
+// ----------------------------------------------------------------------------
+function findPosX(obj) {
+    let curleft = 0;
+    if (obj.offsetParent) {
+        while (obj.offsetParent) {
+            curleft += obj.offsetLeft - obj.scrollLeft;
+            obj = obj.offsetParent;
+        }
+    } else if (obj.x) {
+        curleft += obj.x;
+    }
+    return curleft;
+}
+
+function findPosY(obj) {
+    let curtop = 0;
+    if (obj.offsetParent) {
+        while (obj.offsetParent) {
+            curtop += obj.offsetTop - obj.scrollTop;
+            obj = obj.offsetParent;
+        }
+    } else if (obj.y) {
+        curtop += obj.y;
+    }
+    return curtop;
+}
+
+//-----------------------------------------------------------------------------
+// Date object extensions
+// ----------------------------------------------------------------------------
+{
+    Date.prototype.getTwelveHours = function() {
+        return this.getHours() % 12 || 12;
+    };
+
+    Date.prototype.getTwoDigitMonth = function() {
+        return (this.getMonth() < 9) ? '0' + (this.getMonth() + 1) : (this.getMonth() + 1);
+    };
+
+    Date.prototype.getTwoDigitDate = function() {
+        return (this.getDate() < 10) ? '0' + this.getDate() : this.getDate();
+    };
+
+    Date.prototype.getTwoDigitTwelveHour = function() {
+        return (this.getTwelveHours() < 10) ? '0' + this.getTwelveHours() : this.getTwelveHours();
+    };
+
+    Date.prototype.getTwoDigitHour = function() {
+        return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();
+    };
+
+    Date.prototype.getTwoDigitMinute = function() {
+        return (this.getMinutes() < 10) ? '0' + this.getMinutes() : this.getMinutes();
+    };
+
+    Date.prototype.getTwoDigitSecond = function() {
+        return (this.getSeconds() < 10) ? '0' + this.getSeconds() : this.getSeconds();
+    };
+
+    Date.prototype.getAbbrevDayName = function() {
+        return typeof window.CalendarNamespace === "undefined"
+            ? '0' + this.getDay()
+            : window.CalendarNamespace.daysOfWeekAbbrev[this.getDay()];
+    };
+
+    Date.prototype.getFullDayName = function() {
+        return typeof window.CalendarNamespace === "undefined"
+            ? '0' + this.getDay()
+            : window.CalendarNamespace.daysOfWeek[this.getDay()];
+    };
+
+    Date.prototype.getAbbrevMonthName = function() {
+        return typeof window.CalendarNamespace === "undefined"
+            ? this.getTwoDigitMonth()
+            : window.CalendarNamespace.monthsOfYearAbbrev[this.getMonth()];
+    };
+
+    Date.prototype.getFullMonthName = function() {
+        return typeof window.CalendarNamespace === "undefined"
+            ? this.getTwoDigitMonth()
+            : window.CalendarNamespace.monthsOfYear[this.getMonth()];
+    };
+
+    Date.prototype.strftime = function(format) {
+        const fields = {
+            a: this.getAbbrevDayName(),
+            A: this.getFullDayName(),
+            b: this.getAbbrevMonthName(),
+            B: this.getFullMonthName(),
+            c: this.toString(),
+            d: this.getTwoDigitDate(),
+            H: this.getTwoDigitHour(),
+            I: this.getTwoDigitTwelveHour(),
+            m: this.getTwoDigitMonth(),
+            M: this.getTwoDigitMinute(),
+            p: (this.getHours() >= 12) ? 'PM' : 'AM',
+            S: this.getTwoDigitSecond(),
+            w: '0' + this.getDay(),
+            x: this.toLocaleDateString(),
+            X: this.toLocaleTimeString(),
+            y: ('' + this.getFullYear()).substr(2, 4),
+            Y: '' + this.getFullYear(),
+            '%': '%'
+        };
+        let result = '', i = 0;
+        while (i < format.length) {
+            if (format.charAt(i) === '%') {
+                result += fields[format.charAt(i + 1)];
+                ++i;
+            }
+            else {
+                result += format.charAt(i);
+            }
+            ++i;
+        }
+        return result;
+    };
+
+    // ----------------------------------------------------------------------------
+    // String object extensions
+    // ----------------------------------------------------------------------------
+    String.prototype.strptime = function(format) {
+        co
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/filters.js ---
+/**
+ * Persist changelist filters state (collapsed/expanded).
+ */
+'use strict';
+{
+    // Init filters.
+    let filters = JSON.parse(sessionStorage.getItem('django.admin.filtersState'));
+
+    if (!filters) {
+        filters = {};
+    }
+
+    Object.entries(filters).forEach(([key, value]) => {
+        const detailElement = document.querySelector(`[data-filter-title='${CSS.escape(key)}']`);
+
+        // Check if the filter is present, it could be from other view.
+        if (detailElement) {
+            value ? detailElement.setAttribute('open', '') : detailElement.removeAttribute('open');
+        }
+    });
+
+    // Save filter state when clicks.
+    const details = document.querySelectorAll('details');
+    details.forEach(detail => {
+        detail.addEventListener('toggle', event => {
+            filters[`${event.target.dataset.filterTitle}`] = detail.open;
+            sessionStorage.setItem('django.admin.filtersState', JSON.stringify(filters));
+        });
+    });
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/inlines.js (truncated) ---
+/*global DateTimeShortcuts, SelectFilter*/
+/**
+ * Django admin inlines
+ *
+ * Based on jQuery Formset 1.1
+ * @author Stanislaus Madueke (stan DOT madueke AT gmail DOT com)
+ * @requires jQuery 1.2.6 or later
+ *
+ * Copyright (c) 2009, Stanislaus Madueke
+ * All rights reserved.
+ *
+ * Spiced up with Code from Zain Memon's GSoC project 2009
+ * and modified for Django by Jannis Leidel, Travis Swicegood and Julien Phalip.
+ *
+ * Licensed under the New BSD License
+ * See: https://opensource.org/licenses/bsd-license.php
+ */
+'use strict';
+{
+    const $ = django.jQuery;
+    $.fn.formset = function(opts) {
+        const options = $.extend({}, $.fn.formset.defaults, opts);
+        const $this = $(this);
+        const $parent = $this.parent();
+        const updateElementIndex = function(el, prefix, ndx) {
+            const id_regex = new RegExp("(" + prefix + "-(\\d+|__prefix__))");
+            const replacement = prefix + "-" + ndx;
+            if ($(el).prop("for")) {
+                $(el).prop("for", $(el).prop("for").replace(id_regex, replacement));
+            }
+            if (el.id) {
+                el.id = el.id.replace(id_regex, replacement);
+            }
+            if (el.name) {
+                el.name = el.name.replace(id_regex, replacement);
+            }
+        };
+        const totalForms = $("#id_" + options.prefix + "-TOTAL_FORMS").prop("autocomplete", "off");
+        let nextIndex = parseInt(totalForms.val(), 10);
+        const maxForms = $("#id_" + options.prefix + "-MAX_NUM_FORMS").prop("autocomplete", "off");
+        const minForms = $("#id_" + options.prefix + "-MIN_NUM_FORMS").prop("autocomplete", "off");
+        let addButton;
+
+        /**
+         * The "Add another MyModel" button below the inline forms.
+         */
+        const addInlineAddButton = function() {
+            if (addButton === null) {
+                if ($this.prop("tagName") === "TR") {
+                    // If forms are laid out as table rows, insert the
+                    // "add" button in a new table row:
+                    const numCols = $this.eq(-1).children().length;
+                    $parent.append('<tr class="' + options.addCssClass + '"><td colspan="' + numCols + '"><a href="#">' + options.addText + "</a></tr>");
+                    addButton = $parent.find("tr:last a");
+                } else {
+                    // Otherwise, insert it immediately after the last form:
+                    $this.filter(":last").after('<div class="' + options.addCssClass + '"><a href="#">' + options.addText + "</a></div>");
+                    addButton = $this.filter(":last").next().find("a");
+                }
+            }
+            addButton.on('click', addInlineClickHandler);
+        };
+
+        const addInlineClickHandler = function(e) {
+            e.preventDefault();
+            const template = $("#" + options.prefix + "-empty");
+            const row = template.clone(true);
+            row.removeClass(options.emptyCssClass)
+                .addClass(options.formCssClass)
+                .attr("id", options.prefix + "-" + nextIndex);
+            addInlineDeleteButton(row);
+            row.find("*").each(function() {
+                updateElementIndex(this, options.prefix, totalForms.val());
+            });
+            // Insert the new form when it has been fully edited.
+            row.insertBefore($(template));
+            // Update number of total forms.
+            $(totalForms).val(parseInt(totalForms.val(), 10) + 1);
+            nextIndex += 1;
+            // Hide the add button if there's a limit and it's been reached.
+            if ((maxForms.val() !== '') && (maxForms.val() - totalForms.val()) <= 0) {
+                addButton.parent().hide();
+            }
+            // Show the remove buttons if there are more than min_num.
+            toggleDeleteButtonVisibility(row.closest('.inline-group'));
+
+            // Pass the new form to the post-add callback, if provided.
+            if (options.added) {
+                options.added(row);
+            }
+            row.get(0).dispatchEvent(new CustomEvent("formset:added", {
+                bubbles: true,
+                detail: {
+                    formsetName: options.prefix
+                }
+            }));
+        };
+
+        /**
+         * The "X" button that is part of every unsaved inline.
+         * (When saved, it is replaced with a "Delete" checkbox.)
+         */
+        const addInlineDeleteButton = function(row) {
+            if (row.is("tr")) {
+                // If the forms are laid out in table rows, insert
+                // the remove button into the last table cell:
+                row.children(":last").append('<div><a class="' + options.deleteCssClass + '" href="#">' + options.deleteText + "</a></div>");
+            } else if (row.is("ul") || row.is("ol")) {
+                // If they're laid out as an ordered/unordered list,
+                // insert an <li> after the last list item:
+                row.append('<li><a class="' + options.de
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/jquery.init.js ---
+/*global jQuery:false*/
+'use strict';
+/* Puts the included jQuery into our own namespace using noConflict and passing
+ * it 'true'. This ensures that the included jQuery doesn't pollute the global
+ * namespace (i.e. this preserves pre-existing values for both window.$ and
+ * window.jQuery).
+ */
+window.django = {jQuery: jQuery.noConflict(true)};
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/nav_sidebar.js ---
+'use strict';
+{
+    const toggleNavSidebar = document.getElementById('toggle-nav-sidebar');
+    if (toggleNavSidebar !== null) {
+        const navSidebar = document.getElementById('nav-sidebar');
+        const main = document.getElementById('main');
+        let navSidebarIsOpen = localStorage.getItem('django.admin.navSidebarIsOpen');
+        if (navSidebarIsOpen === null) {
+            navSidebarIsOpen = 'true';
+        }
+        main.classList.toggle('shifted', navSidebarIsOpen === 'true');
+        navSidebar.setAttribute('aria-expanded', navSidebarIsOpen);
+
+        toggleNavSidebar.addEventListener('click', function() {
+            if (navSidebarIsOpen === 'true') {
+                navSidebarIsOpen = 'false';
+            } else {
+                navSidebarIsOpen = 'true';
+            }
+            localStorage.setItem('django.admin.navSidebarIsOpen', navSidebarIsOpen);
+            main.classList.toggle('shifted');
+            navSidebar.setAttribute('aria-expanded', navSidebarIsOpen);
+        });
+    }
+
+    function initSidebarQuickFilter() {
+        const options = [];
+        const navSidebar = document.getElementById('nav-sidebar');
+        if (!navSidebar) {
+            return;
+        }
+        navSidebar.querySelectorAll('th[scope=row] a').forEach((container) => {
+            options.push({title: container.innerHTML, node: container});
+        });
+
+        function checkValue(event) {
+            let filterValue = event.target.value;
+            if (filterValue) {
+                filterValue = filterValue.toLowerCase();
+            }
+            if (event.key === 'Escape') {
+                filterValue = '';
+                event.target.value = ''; // clear input
+            }
+            let matches = false;
+            for (const o of options) {
+                let displayValue = '';
+                if (filterValue) {
+                    if (o.title.toLowerCase().indexOf(filterValue) === -1) {
+                        displayValue = 'none';
+                    } else {
+                        matches = true;
+                    }
+                }
+                // show/hide parent <TR>
+                o.node.parentNode.parentNode.style.display = displayValue;
+            }
+            if (!filterValue || matches) {
+                event.target.classList.remove('no-results');
+            } else {
+                event.target.classList.add('no-results');
+            }
+            sessionStorage.setItem('django.admin.navSidebarFilterValue', filterValue);
+        }
+
+        const nav = document.getElementById('nav-filter');
+        nav.addEventListener('change', checkValue, false);
+        nav.addEventListener('input', checkValue, false);
+        nav.addEventListener('keyup', checkValue, false);
+
+        const storedValue = sessionStorage.getItem('django.admin.navSidebarFilterValue');
+        if (storedValue) {
+            nav.value = storedValue;
+            checkValue({target: nav, key: ''});
+        }
+    }
+    window.initSidebarQuickFilter = initSidebarQuickFilter;
+    initSidebarQuickFilter();
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/popup_response.js ---
+/*global opener */
+'use strict';
+{
+    const initData = JSON.parse(document.getElementById('django-admin-popup-response-constants').dataset.popupResponse);
+    switch(initData.action) {
+    case 'change':
+        opener.dismissChangeRelatedObjectPopup(window, initData.value, initData.obj, initData.new_value);
+        break;
+    case 'delete':
+        opener.dismissDeleteRelatedObjectPopup(window, initData.value);
+        break;
+    default:
+        opener.dismissAddRelatedObjectPopup(window, initData.value, initData.obj);
+        break;
+    }
+}
+
+
+--- venv/Lib/site-packages/django/contrib/admin/static/admin/js/prepopulate.js ---
+/*global URLify*/
+'use strict';
+{
+    const $ = django.jQuery;
+    $.fn.prepopulate = function(dependencies, maxLength, allowUnicode) {
+        /*
+            Depends on urlify.js
+            Populates a selected field with the values of the dependent fields,
+            URLifies and shortens the string.
+            dependencies - array of dependent fields ids
+            maxLength - maximum length of the URLify'd string
+            allowUnicode - Unicode support of the URLify'd string
+        */
+        return this.each(function() {
+            const prepopulatedField = $(this);
+
+            const populate = function() {
+                // Bail if the field's value has been changed by the user
+                if (prepopulatedField.data('_changed')) {
+                    return;
+                }
+
+                const values = [];
+                $.each(dependencies, function(i, field) {
+                    field = $(field);
+                    if (field.val().length > 0) {
+                        values.push(field.val());
+                    }
+                });
+                prepopulatedField.val(URLify(values.join(' '), maxLength, allowUnicode));
+            };
+
+            prepopulatedField.data('_changed', false);
+            prepopulatedField.on('change', function() {
+                prepopulatedField.data('_changed', true);
+            });
+
+            if (!prepopulatedField.val()) {
+                $(dependencies.join(',')).on('keyup change focus', populate);
+            }
+        });
+    };
+}
+
+
+## Instructions
+
+Analyze the above codebase context and provide your response following the format specified in the task.
