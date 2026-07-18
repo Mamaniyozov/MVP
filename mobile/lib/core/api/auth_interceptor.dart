@@ -49,8 +49,9 @@ class AuthInterceptor extends Interceptor {
   ) async {
     final isUnauthorized = err.response?.statusCode == 401;
     final requestPath = err.requestOptions.path;
+    final isRetried = err.requestOptions.extra['isRetried'] == true;
 
-    if (!isUnauthorized || _isPublicPath(requestPath)) {
+    if (!isUnauthorized || _isPublicPath(requestPath) || isRetried) {
       handler.next(err);
       return;
     }
@@ -67,6 +68,7 @@ class AuthInterceptor extends Interceptor {
       final newAccessToken = await tokenStorage.accessToken;
       final retryOptions = err.requestOptions;
       retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+      retryOptions.extra['isRetried'] = true;
       final response = await refreshDio.fetch<dynamic>(retryOptions);
       handler.resolve(response);
     } on DioException catch (retryError) {

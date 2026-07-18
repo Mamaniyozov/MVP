@@ -100,3 +100,20 @@ def test_add_progress_exceeding_target_returns_error():
 
     goal.refresh_from_db()
     assert goal.current_amount == 900000
+
+
+@pytest.mark.django_db
+def test_add_progress_negative_amount_returns_error():
+    user = User.objects.create_user(username="g7@example.com", email="g7@example.com", password="Str0ngPass!1")
+    goal = Goal.objects.create(user=user, name="Mashina", target_amount="1000000", current_amount="100000")
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(f"/api/v1/goals/{goal.id}/add-progress/", {"amount": "-50000"})
+
+    assert response.status_code == 400
+    assert "amount" in response.data
+
+    goal.refresh_from_db()
+    assert goal.current_amount == 100000

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-13T12:45:01.091Z",
+  "timestamp": "2026-07-15T20:17:55.266Z",
   "distillationEnabled": true,
   "patternsConsolidated": 0,
   "memoryCleaned": 0,
@@ -12,5 +12,5 @@
   "namespaces": [],
   "dryRun": false,
   "corrupt": false,
-  "skipped": "no-db"
+  "skipped": "better-sqlite3 unavailable"
 }

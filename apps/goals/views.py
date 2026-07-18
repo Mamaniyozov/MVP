@@ -1,3 +1,4 @@
+from django.db.models import F
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -38,7 +39,8 @@ class GoalViewSet(viewsets.ModelViewSet):
         if new_amount > goal.target_amount:
             raise ValidationError({"amount": "Bu miqdor maqsad summasidan (target_amount) oshib ketadi."})
 
-        goal.current_amount = new_amount
+        goal.current_amount = F("current_amount") + amount
         goal.save(update_fields=["current_amount"])
 
+        goal.refresh_from_db()
         return Response(GoalSerializer(goal).data)
