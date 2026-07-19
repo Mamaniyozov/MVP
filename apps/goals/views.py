@@ -1,4 +1,5 @@
-from django.db.models import F
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -30,17 +31,20 @@ class GoalViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"], url_path="add-progress")
     def add_progress(self, request, pk=None):
-        goal = self.get_object()
         serializer = AddProgressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
 
-        new_amount = goal.current_amount + amount
-        if new_amount > goal.target_amount:
-            raise ValidationError({"amount": "Bu miqdor maqsad summasidan (target_amount) oshib ketadi."})
+        # Qator lock ostida o'qish + tekshiruv + yozish bitta tranzaksiyada bo'lmasa,
+        # ikki parallel so'rov target_amount limitidan oshirib yuborishi mumkin.
+        with transaction.atomic():
+            goal = get_object_or_404(self.get_queryset().select_for_update(), pk=pk)
 
-        goal.current_amount = F("current_amount") + amount
-        goal.save(update_fields=["current_amount"])
+            new_amount = goal.current_amount + amount
+            if new_amount > goal.target_amount:
+                raise ValidationError({"amount": "Bu miqdor maqsad summasidan (target_amount) oshib ketadi."})
 
-        goal.refresh_from_db()
+            goal.current_amount = new_amount
+            goal.save(update_fields=["current_amount"])
+
         return Response(GoalSerializer(goal).data)

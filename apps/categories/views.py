@@ -19,11 +19,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
-        if serializer.instance.user_id is None:
+        # user_id is None — global standart; is_default=True — signup'da yaratilgan
+        # (apps/users/services.py) shaxsiy standart kategoriya. Ikkalasi ham himoyalanadi.
+        if serializer.instance.user_id is None or serializer.instance.is_default:
             raise PermissionDenied("Standart kategoriyalarni tahrirlab bo'lmaydi.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        if instance.user_id is None:
+        if instance.user_id is None or instance.is_default:
             raise PermissionDenied("Standart kategoriyalarni o'chirib bo'lmaydi.")
         instance.delete()
