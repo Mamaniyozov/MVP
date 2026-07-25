@@ -64,6 +64,28 @@ def test_cannot_update_or_delete_global_default_category():
 
 
 @pytest.mark.django_db
+def test_cannot_update_or_delete_own_default_category():
+    user = User.objects.create_user(username="h@example.com", email="h@example.com", password="Str0ngPass!1")
+    default_category = Category.objects.filter(user=user, is_default=True).first()
+    assert default_category is not None
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    detail_url = f"/api/v1/categories/{default_category.id}/"
+    original_name = default_category.name
+
+    patch_response = client.patch(detail_url, {"name": "Hacked"})
+    assert patch_response.status_code == 403
+
+    delete_response = client.delete(detail_url)
+    assert delete_response.status_code == 403
+
+    default_category.refresh_from_db()
+    assert default_category.name == original_name
+
+
+@pytest.mark.django_db
 def test_type_filter():
     user = User.objects.create_user(username="e@example.com", email="e@example.com", password="Str0ngPass!1")
 

@@ -196,6 +196,36 @@ def test_category_breakdown_api_requires_auth_and_returns_data():
 
 
 @pytest.mark.django_db
+def test_category_breakdown_api_invalid_month_returns_400():
+    user = User.objects.create_user(username="api4@example.com", email="api4@example.com", password="Str0ngPass!1")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/v1/analytics/category-breakdown/", {"month": "abc"})
+    assert response.status_code == 400
+    assert "month" in response.data
+
+    response = client.get("/api/v1/analytics/category-breakdown/", {"month": 13})
+    assert response.status_code == 400
+    assert "month" in response.data
+
+
+@pytest.mark.django_db
+def test_monthly_trend_api_invalid_months_returns_400():
+    user = User.objects.create_user(username="api5@example.com", email="api5@example.com", password="Str0ngPass!1")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/v1/analytics/monthly-trend/", {"months": "abc"})
+    assert response.status_code == 400
+    assert "months" in response.data
+
+    response = client.get("/api/v1/analytics/monthly-trend/", {"months": 0})
+    assert response.status_code == 400
+    assert "months" in response.data
+
+
+@pytest.mark.django_db
 def test_monthly_trend_api_default_months():
     user = User.objects.create_user(username="api2@example.com", email="api2@example.com", password="Str0ngPass!1")
     client = APIClient()

@@ -1,6 +1,7 @@
 from datetime import date
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,6 +14,22 @@ MONTH_PARAM = OpenApiParameter(
 YEAR_PARAM = OpenApiParameter(
     "year", int, description="Yil (masalan 2026). Berilmasa joriy yil ishlatiladi.", required=False
 )
+
+
+def _int_param(params, name, default, min_value=None, max_value=None):
+    raw = params.get(name)
+    if raw in (None, ""):
+        value = default
+    else:
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            raise ValidationError({name: "Butun son bo'lishi kerak."})
+    if max_value is not None and not (min_value <= value <= max_value):
+        raise ValidationError({name: f"{min_value}-{max_value} oralig'ida bo'lishi kerak."})
+    if min_value is not None and value < min_value:
+        raise ValidationError({name: f"Kamida {min_value} bo'lishi kerak."})
+    return value
 
 
 class CategoryBreakdownView(APIView):
@@ -28,8 +45,8 @@ class CategoryBreakdownView(APIView):
     )
     def get(self, request):
         today = date.today()
-        month = int(request.query_params.get("month", today.month))
-        year = int(request.query_params.get("year", today.year))
+        month = _int_param(request.query_params, "month", today.month, min_value=1, max_value=12)
+        year = _int_param(request.query_params, "year", today.year, min_value=1)
         return Response(get_category_breakdown(request.user, month, year))
 
 
@@ -51,7 +68,7 @@ class MonthlyTrendView(APIView):
         ),
     )
     def get(self, request):
-        months = int(request.query_params.get("months", 6))
+        months = _int_param(request.query_params, "months", 6, min_value=1)
         return Response(get_monthly_trend(request.user, months))
 
 
@@ -68,6 +85,6 @@ class MonthlyReportView(APIView):
     )
     def get(self, request):
         today = date.today()
-        month = int(request.query_params.get("month", today.month))
-        year = int(request.query_params.get("year", today.year))
+        month = _int_param(request.query_params, "month", today.month, min_value=1, max_value=12)
+        year = _int_param(request.query_params, "year", today.year, min_value=1)
         return Response(get_monthly_report(request.user, month, year))

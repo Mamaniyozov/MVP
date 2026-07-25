@@ -12,7 +12,8 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="dev-insecure-secret-key")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+# 10.0.2.2 — Android emulatordagi Flutter app host mashinaga shu manzil orqali chiqadi
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "10.0.2.2"])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -71,7 +72,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 # since "db" is only resolvable inside the compose network.
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        # DB_ENGINE faqat lokal test uchun (Postgres yo'q muhitda sqlite3'ga o'tkazish);
+        # docker-compose va production default Postgres'da qoladi.
+        "ENGINE": env.str("DB_ENGINE", default="django.db.backends.postgresql"),
         "NAME": env.str("POSTGRES_DB", default="finance_db"),
         "USER": env.str("POSTGRES_USER", default="finance_user"),
         "PASSWORD": env.str("POSTGRES_PASSWORD", default="finance_pass"),
