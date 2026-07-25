@@ -47,6 +47,12 @@ class AuthController extends StateNotifier<AuthState> {
     } on AuthException catch (error) {
       state = AuthState(status: AuthStatus.unauthenticated, errorMessage: error.message);
       return false;
+    } catch (_) {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: "Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring",
+      );
+      return false;
     }
   }
 
@@ -64,6 +70,12 @@ class AuthController extends StateNotifier<AuthState> {
       return true;
     } on AuthException catch (error) {
       state = AuthState(status: AuthStatus.unauthenticated, errorMessage: error.message);
+      return false;
+    } catch (_) {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: "Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring",
+      );
       return false;
     }
   }

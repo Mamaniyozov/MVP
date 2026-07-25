@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_controller.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -18,11 +20,48 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text(
-          'Xush kelibsiz!',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _DashboardCard(
+              icon: Icons.receipt_long_outlined,
+              title: 'Tranzaksiyalar',
+              subtitle: "Daromad va xarajatlaringizni ko'ring, yangi qo'shing",
+              onTap: () => context.push(AppRoutes.transactions),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _DashboardCard extends StatelessWidget {
+  const _DashboardCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(child: Icon(icon)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }

@@ -8,6 +8,8 @@ import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:mobile/features/splash/presentation/splash_screen.dart';
+import 'package:mobile/features/transactions/presentation/screens/add_transaction_screen.dart';
+import 'package:mobile/features/transactions/presentation/screens/transaction_list_screen.dart';
 
 /// Bridges Riverpod auth-state changes into a [Listenable] GoRouter can
 /// use as `refreshListenable`, so navigation re-evaluates `redirect`
@@ -55,6 +57,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.login, builder: (context, state) => const LoginScreen()),
       GoRoute(path: AppRoutes.register, builder: (context, state) => const RegisterScreen()),
       GoRoute(path: AppRoutes.dashboard, builder: (context, state) => const DashboardScreen()),
+      GoRoute(
+        path: AppRoutes.transactions,
+        builder: (context, state) => const TransactionListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addTransaction,
+        builder: (context, state) => const AddTransactionScreen(),
+      ),
     ],
   );
 });

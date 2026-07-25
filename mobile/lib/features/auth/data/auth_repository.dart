@@ -22,6 +22,8 @@ class AuthRepository {
       return AuthTokens.fromJson(response.data!);
     } on DioException catch (error) {
       throw AuthException(_loginErrorMessage(error));
+    } catch (_) {
+      throw const AuthException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
     }
   }
 
@@ -44,6 +46,8 @@ class AuthRepository {
       return User.fromJson(response.data!);
     } on DioException catch (error) {
       throw AuthException(_registerErrorMessage(error));
+    } catch (_) {
+      throw const AuthException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
     }
   }
 

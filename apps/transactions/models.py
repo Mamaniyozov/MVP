@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.cards.models import Card
@@ -16,7 +19,9 @@ class Transaction(models.Model):
     card = models.ForeignKey(
         Card, null=True, blank=True, on_delete=models.SET_NULL, related_name="transactions"
     )
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
     type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     date = models.DateField()
     note = models.CharField(max_length=255, blank=True)
