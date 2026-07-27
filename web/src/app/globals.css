@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-paper text-ink font-body antialiased dark:bg-paper-dark dark:text-ink-dark;
+  }
+
+  ::selection {
+    @apply bg-accent/40;
+  }
+
+  *:focus-visible {
+    outline: 2px solid theme("colors.brand.DEFAULT");
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Ledger row: the app's signature motif — a hairline register row with a
+     category-colored left rule and tabular-numeral amount, echoing a paper
+     check register / receipt line. */
+  .ledger-row {
+    @apply grid grid-cols-[3px_1fr_auto] items-center gap-4 rounded-md border-l-[3px] border-transparent py-3 pl-4 pr-2 transition-colors hover:bg-brand/[0.04] dark:hover:bg-white/[0.03];
+  }
+
+  .amount {
+    @apply font-mono tabular-nums;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-surface shadow-card dark:border-line-dark dark:bg-surface-dark;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted focus-visible:border-brand dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:hover:bg-white/5;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-expense transition-colors hover:bg-expense/10;
+  }
+}

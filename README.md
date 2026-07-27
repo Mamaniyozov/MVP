@@ -24,9 +24,10 @@ Django + DRF API for the personal finance tracking app.
    docker-compose up --build
    ```
 
-   This starts two services:
+   This starts three services:
    - `db` — PostgreSQL 16
    - `backend` — Django dev server on http://localhost:8000
+   - `web` — Next.js dev server on http://localhost:3000 (see `web/README.md`), talking to `backend` via `WEB_API_BASE_URL` (defaults to `http://localhost:8000/api/v1`)
 
 3. Apply migrations (first run):
 
