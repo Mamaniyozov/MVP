@@ -52,6 +52,13 @@ class DashboardScreen extends ConsumerWidget {
               subtitle: 'Joriy va o\'tgan oyni solishtiring',
               onTap: () => context.push(AppRoutes.monthlyReport),
             ),
+            const SizedBox(height: 12),
+            _DashboardCard(
+              icon: Icons.label_outline,
+              title: 'Kategoriyalar',
+              subtitle: "O'zingizning kategoriyalaringizni boshqaring",
+              onTap: () => context.push(AppRoutes.categories),
+            ),
           ],
         ),
       ),

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
@@ -8,6 +8,9 @@ import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/category_breakdown_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/monthly_report_screen.dart';
+import 'package:mobile/features/categories/domain/category.dart';
+import 'package:mobile/features/categories/presentation/screens/add_edit_category_screen.dart';
+import 'package:mobile/features/categories/presentation/screens/category_list_screen.dart';
 import 'package:mobile/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:mobile/features/goals/presentation/screens/add_goal_screen.dart';
 import 'package:mobile/features/goals/presentation/screens/goal_list_screen.dart';
@@ -84,6 +87,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.monthlyReport,
         builder: (context, state) => const MonthlyReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.categories,
+        builder: (context, state) => const CategoryListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addCategory,
+        builder: (context, state) => const AddEditCategoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.editCategory,
+        builder: (context, state) => AddEditCategoryScreen(existing: state.extra as Category),
       ),
     ],
   );
