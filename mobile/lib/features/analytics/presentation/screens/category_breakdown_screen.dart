@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/features/analytics/domain/category_breakdown_entry.dart';
+import 'package:mobile/features/analytics/presentation/month_names.dart';
 import 'package:mobile/features/analytics/presentation/providers/category_breakdown_controller.dart';
 
 const _sliceColors = [
@@ -14,21 +15,6 @@ const _sliceColors = [
   Color(0xFFDB2777),
   Color(0xFF0891B2),
   Color(0xFF65A30D),
-];
-
-const _monthNames = [
-  'Yanvar',
-  'Fevral',
-  'Mart',
-  'Aprel',
-  'May',
-  'Iyun',
-  'Iyul',
-  'Avgust',
-  'Sentabr',
-  'Oktabr',
-  'Noyabr',
-  'Dekabr',
 ];
 
 class CategoryBreakdownScreen extends ConsumerWidget {
@@ -80,7 +66,7 @@ class _MonthSelector extends ConsumerWidget {
             icon: const Icon(Icons.chevron_left),
           ),
           Text(
-            '${_monthNames[month - 1]} $year',
+            '${uzMonthNames[month - 1]} $year',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           IconButton(

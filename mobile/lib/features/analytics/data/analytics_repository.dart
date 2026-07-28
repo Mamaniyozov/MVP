@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/api/api_client.dart';
 import 'package:mobile/features/analytics/data/analytics_exception.dart';
 import 'package:mobile/features/analytics/domain/category_breakdown_entry.dart';
+import 'package:mobile/features/analytics/domain/monthly_report.dart';
 
 class AnalyticsRepository {
   AnalyticsRepository(this._dio);
@@ -22,6 +23,20 @@ class AnalyticsRepository {
           .cast<Map<String, dynamic>>()
           .map(CategoryBreakdownEntry.fromJson)
           .toList();
+    } on DioException catch (error) {
+      throw AnalyticsException(_networkErrorMessage(error));
+    } catch (_) {
+      throw const AnalyticsException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
+    }
+  }
+
+  Future<MonthlyReport> monthlyReport({required int month, required int year}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/analytics/monthly-report/',
+        queryParameters: {'month': month, 'year': year},
+      );
+      return MonthlyReport.fromJson(response.data!);
     } on DioException catch (error) {
       throw AnalyticsException(_networkErrorMessage(error));
     } catch (_) {

@@ -10,4 +10,5 @@ class AppRoutes {
   static const goals = '/goals';
   static const addGoal = '/goals/add';
   static const categoryBreakdown = '/analytics/category-breakdown';
+  static const monthlyReport = '/analytics/monthly-report';
 }

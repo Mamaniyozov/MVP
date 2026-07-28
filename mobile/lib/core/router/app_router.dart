@@ -7,6 +7,7 @@ import 'package:mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/category_breakdown_screen.dart';
+import 'package:mobile/features/analytics/presentation/screens/monthly_report_screen.dart';
 import 'package:mobile/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:mobile/features/goals/presentation/screens/add_goal_screen.dart';
 import 'package:mobile/features/goals/presentation/screens/goal_list_screen.dart';
@@ -79,6 +80,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.categoryBreakdown,
         builder: (context, state) => const CategoryBreakdownScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.monthlyReport,
+        builder: (context, state) => const MonthlyReportScreen(),
       ),
     ],
   );
