@@ -38,6 +38,13 @@ class DashboardScreen extends ConsumerWidget {
               subtitle: "Jamg'arma maqsadlaringizni kuzatib boring",
               onTap: () => context.push(AppRoutes.goals),
             ),
+            const SizedBox(height: 12),
+            _DashboardCard(
+              icon: Icons.pie_chart_outline,
+              title: 'Xarajatlar tahlili',
+              subtitle: 'Kategoriya bo\'yicha xarajatlaringizni ko\'ring',
+              onTap: () => context.push(AppRoutes.categoryBreakdown),
+            ),
           ],
         ),
       ),

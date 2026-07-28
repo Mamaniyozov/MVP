@@ -9,4 +9,5 @@ class AppRoutes {
   static const addTransaction = '/transactions/add';
   static const goals = '/goals';
   static const addGoal = '/goals/add';
+  static const categoryBreakdown = '/analytics/category-breakdown';
 }
