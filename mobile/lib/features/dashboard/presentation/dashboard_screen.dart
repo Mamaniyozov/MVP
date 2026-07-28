@@ -31,6 +31,13 @@ class DashboardScreen extends ConsumerWidget {
               subtitle: "Daromad va xarajatlaringizni ko'ring, yangi qo'shing",
               onTap: () => context.push(AppRoutes.transactions),
             ),
+            const SizedBox(height: 12),
+            _DashboardCard(
+              icon: Icons.savings_outlined,
+              title: 'Maqsadlar',
+              subtitle: "Jamg'arma maqsadlaringizni kuzatib boring",
+              onTap: () => context.push(AppRoutes.goals),
+            ),
           ],
         ),
       ),

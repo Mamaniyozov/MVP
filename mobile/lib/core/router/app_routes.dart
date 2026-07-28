@@ -7,4 +7,6 @@ class AppRoutes {
   static const dashboard = '/dashboard';
   static const transactions = '/transactions';
   static const addTransaction = '/transactions/add';
+  static const goals = '/goals';
+  static const addGoal = '/goals/add';
 }

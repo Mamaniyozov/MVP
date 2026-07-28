@@ -7,6 +7,8 @@ import 'package:mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:mobile/features/goals/presentation/screens/add_goal_screen.dart';
+import 'package:mobile/features/goals/presentation/screens/goal_list_screen.dart';
 import 'package:mobile/features/splash/presentation/splash_screen.dart';
 import 'package:mobile/features/transactions/presentation/screens/add_transaction_screen.dart';
 import 'package:mobile/features/transactions/presentation/screens/transaction_list_screen.dart';
@@ -64,6 +66,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.addTransaction,
         builder: (context, state) => const AddTransactionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.goals,
+        builder: (context, state) => const GoalListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addGoal,
+        builder: (context, state) => const AddGoalScreen(),
       ),
     ],
   );
