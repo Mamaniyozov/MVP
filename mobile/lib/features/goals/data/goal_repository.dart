@@ -9,11 +9,11 @@ class GoalRepository {
 
   final Dio _dio;
 
+  /// Goals are unpaginated on the backend — a plain JSON array.
   Future<List<Goal>> list() async {
     try {
-      final response = await _dio.get<Map<String, dynamic>>('/api/v1/goals/');
-      final results = response.data!['results'] as List<dynamic>;
-      return results.cast<Map<String, dynamic>>().map(Goal.fromJson).toList();
+      final response = await _dio.get<List<dynamic>>('/api/v1/goals/');
+      return response.data!.cast<Map<String, dynamic>>().map(Goal.fromJson).toList();
     } on DioException catch (error) {
       throw GoalException(_networkErrorMessage(error));
     } catch (_) {
