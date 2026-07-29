@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/cards/presentation/providers/card_providers.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/categories/presentation/providers/category_providers.dart';
@@ -141,9 +142,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     padding: EdgeInsets.symmetric(vertical: 16),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                  error: (error, _) => Text(
+                  error: (error, _) => const Text(
                     "Kategoriyalarni yuklab bo'lmadi",
-                    style: TextStyle(color: Colors.red.shade700),
+                    style: TextStyle(color: AppColors.expense),
                   ),
                   data: (categories) {
                     if (_categoryId != null &&

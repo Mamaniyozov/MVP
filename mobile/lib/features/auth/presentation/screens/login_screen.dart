@@ -74,10 +74,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Davom etish uchun tizimga kiring',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Colors.grey.shade600),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(

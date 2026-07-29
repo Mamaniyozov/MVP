@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/analytics/domain/category_breakdown_entry.dart';
 import 'package:mobile/features/analytics/presentation/month_names.dart';
 import 'package:mobile/features/analytics/presentation/providers/category_breakdown_controller.dart';
@@ -138,23 +139,30 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.pie_chart_outline, size: 56, color: Colors.grey.shade400),
+            Icon(
+              Icons.pie_chart_outline,
+              size: 56,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Bu oy uchun xarajat yo'q",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
               'Tanlangan oyda xarajat tranzaksiyalari topilmadi',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -177,7 +185,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

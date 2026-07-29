@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/categories/data/category_exception.dart';
 import 'package:mobile/features/categories/data/category_repository.dart';
 import 'package:mobile/features/categories/domain/category.dart';
@@ -56,14 +57,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 13,
+        style: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          color: Colors.grey.shade600,
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -120,7 +121,11 @@ class _CategoryTile extends ConsumerWidget {
       title: Text(category.name),
       subtitle: isProtected ? const Text('Standart kategoriya') : null,
       trailing: isProtected
-          ? Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade400)
+          ? Icon(
+              Icons.lock_outline,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+            )
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -152,7 +157,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

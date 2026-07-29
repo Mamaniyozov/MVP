@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/analytics/domain/monthly_report.dart';
 import 'package:mobile/features/analytics/presentation/month_names.dart';
 import 'package:mobile/features/analytics/presentation/providers/monthly_report_controller.dart';
@@ -113,21 +114,21 @@ class _TotalsCard extends StatelessWidget {
               child: _TotalTile(
                 label: 'Daromad',
                 value: numberFormat.format(totals.income),
-                color: Colors.green.shade700,
+                color: AppColors.income,
               ),
             ),
             Expanded(
               child: _TotalTile(
                 label: 'Xarajat',
                 value: numberFormat.format(totals.expense),
-                color: Colors.red.shade700,
+                color: AppColors.expense,
               ),
             ),
             Expanded(
               child: _TotalTile(
                 label: "Jamg'arma",
                 value: numberFormat.format(totals.savings),
-                color: isPositiveSavings ? Colors.green.shade700 : Colors.red.shade700,
+                color: isPositiveSavings ? AppColors.income : AppColors.expense,
               ),
             ),
           ],
@@ -146,9 +147,15 @@ class _TotalTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
@@ -204,7 +211,12 @@ class _ChangeRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label),
-            Text('-', style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              '-',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+              ),
+            ),
           ],
         ),
       );
@@ -212,7 +224,7 @@ class _ChangeRow extends StatelessWidget {
 
     final isIncrease = percent! >= 0;
     final isGood = isIncrease == higherIsGood;
-    final color = isGood ? Colors.green.shade700 : Colors.red.shade700;
+    final color = isGood ? AppColors.income : AppColors.expense;
     final sign = isIncrease ? '+' : '';
 
     return Padding(
@@ -262,7 +274,7 @@ class _InsightsCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber.shade700),
+                    const Icon(Icons.lightbulb_outline, size: 16, color: AppColors.accent),
                     const SizedBox(width: 8),
                     Expanded(child: Text(insight)),
                   ],
@@ -286,7 +298,9 @@ class _NoComparisonNotice extends StatelessWidget {
         child: Text(
           "O'tgan oy uchun ma'lumot yo'q, shuning uchun solishtirish mumkin emas",
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey.shade600),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ),
     );
@@ -307,7 +321,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/goals/data/goal_exception.dart';
 import 'package:mobile/features/goals/data/goal_repository.dart';
 import 'package:mobile/features/goals/domain/goal.dart';
@@ -107,6 +108,7 @@ class _GoalCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final numberFormat = NumberFormat.decimalPattern('uz');
     final progress = (goal.progressPercent / 100).clamp(0.0, 1.0);
     final isComplete = goal.progressPercent >= 100;
@@ -122,13 +124,15 @@ class _GoalCard extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     goal.name,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
                 if (goal.deadline != null)
                   Text(
                     DateFormat('dd.MM.yyyy').format(goal.deadline!),
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
               ],
             ),
@@ -138,7 +142,7 @@ class _GoalCard extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 8,
-                color: isComplete ? Colors.green.shade600 : null,
+                color: isComplete ? AppColors.income : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -147,13 +151,15 @@ class _GoalCard extends ConsumerWidget {
               children: [
                 Text(
                   '${numberFormat.format(goal.currentAmount)} / ${numberFormat.format(goal.targetAmount)}',
-                  style: TextStyle(color: Colors.grey.shade700),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                  ),
                 ),
                 Text(
                   '${goal.progressPercent.toStringAsFixed(0)}%',
-                  style: TextStyle(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isComplete ? Colors.green.shade700 : Colors.grey.shade800,
+                    color: isComplete ? AppColors.income : theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -181,23 +187,30 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.savings_outlined, size: 56, color: Colors.grey.shade400),
+            Icon(
+              Icons.savings_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Hali maqsad yo'q",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
               "Pastdagi + tugmasi orqali birinchi jamg'arma maqsadingizni qo'shing",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -220,7 +233,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

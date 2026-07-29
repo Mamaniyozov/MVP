@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/cards/data/card_exception.dart';
 import 'package:mobile/features/cards/data/card_repository.dart';
 import 'package:mobile/features/cards/domain/card.dart';
@@ -157,7 +158,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

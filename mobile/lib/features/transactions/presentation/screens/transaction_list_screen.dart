@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/categories/presentation/providers/category_providers.dart';
 import 'package:mobile/features/transactions/domain/transaction.dart';
@@ -66,7 +67,7 @@ class _TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncome = transaction.type == CategoryType.income;
-    final amountColor = isIncome ? Colors.green.shade700 : Colors.red.shade700;
+    final amountColor = isIncome ? AppColors.income : AppColors.expense;
     final sign = isIncome ? '+' : '-';
     final amountText = NumberFormat.decimalPattern('uz').format(transaction.amount);
 
@@ -98,23 +99,30 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 56, color: Colors.grey.shade400),
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Hali tranzaksiya yo'q",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
               "Pastdagi + tugmasi orqali birinchi daromad yoki xarajatingizni qo'shing",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -137,7 +145,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.expense),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
