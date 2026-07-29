@@ -8,6 +8,9 @@ import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/category_breakdown_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/monthly_report_screen.dart';
+import 'package:mobile/features/cards/domain/card.dart';
+import 'package:mobile/features/cards/presentation/screens/add_edit_card_screen.dart';
+import 'package:mobile/features/cards/presentation/screens/card_list_screen.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/categories/presentation/screens/add_edit_category_screen.dart';
 import 'package:mobile/features/categories/presentation/screens/category_list_screen.dart';
@@ -99,6 +102,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editCategory,
         builder: (context, state) => AddEditCategoryScreen(existing: state.extra as Category),
+      ),
+      GoRoute(
+        path: AppRoutes.cards,
+        builder: (context, state) => const CardListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addCard,
+        builder: (context, state) => const AddEditCardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.editCard,
+        builder: (context, state) => AddEditCardScreen(existing: state.extra as BankCard),
       ),
     ],
   );

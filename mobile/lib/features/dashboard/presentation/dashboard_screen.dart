@@ -46,6 +46,13 @@ class DashboardScreen extends ConsumerWidget {
         tone: AppColors.brandStrong,
         route: AppRoutes.categories,
       ),
+      (
+        icon: Icons.credit_card_outlined,
+        title: 'Kartalar',
+        subtitle: "Kartalaringizni qo'shing va boshqaring",
+        tone: AppColors.income,
+        route: AppRoutes.cards,
+      ),
     ];
 
     return Scaffold(

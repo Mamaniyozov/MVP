@@ -14,4 +14,7 @@ class AppRoutes {
   static const categories = '/categories';
   static const addCategory = '/categories/add';
   static const editCategory = '/categories/edit';
+  static const cards = '/cards';
+  static const addCard = '/cards/add';
+  static const editCard = '/cards/edit';
 }
