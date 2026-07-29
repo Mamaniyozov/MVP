@@ -6,6 +6,8 @@ import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/categories/presentation/providers/category_providers.dart';
+import 'package:mobile/features/goals/domain/goal.dart';
+import 'package:mobile/features/goals/presentation/providers/goal_list_controller.dart';
 import 'package:mobile/features/transactions/domain/transaction.dart';
 import 'package:mobile/features/transactions/presentation/providers/transaction_list_controller.dart';
 
@@ -16,6 +18,7 @@ class TransactionListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionListControllerProvider);
     final categoriesAsync = ref.watch(allCategoriesProvider);
+    final goalsAsync = ref.watch(goalListControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tranzaksiyalar')),
@@ -37,6 +40,9 @@ class TransactionListScreen extends ConsumerWidget {
             for (final category in categoriesAsync.valueOrNull ?? const <Category>[])
               category.id: category,
           };
+          final goalsById = <int, Goal>{
+            for (final goal in goalsAsync.valueOrNull ?? const <Goal>[]) goal.id: goal,
+          };
           return RefreshIndicator(
             onRefresh: () => ref.read(transactionListControllerProvider.notifier).refresh(),
             child: ListView.separated(
@@ -48,6 +54,7 @@ class TransactionListScreen extends ConsumerWidget {
                 return _TransactionTile(
                   transaction: transaction,
                   category: categoriesById[transaction.categoryId],
+                  goal: transaction.goalId != null ? goalsById[transaction.goalId] : null,
                 );
               },
             ),
@@ -59,13 +66,15 @@ class TransactionListScreen extends ConsumerWidget {
 }
 
 class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({required this.transaction, required this.category});
+  const _TransactionTile({required this.transaction, required this.category, required this.goal});
 
   final Transaction transaction;
   final Category? category;
+  final Goal? goal;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isIncome = transaction.type == CategoryType.income;
     final amountColor = isIncome ? AppColors.income : AppColors.expense;
     final sign = isIncome ? '+' : '-';
@@ -80,11 +89,38 @@ class _TransactionTile extends StatelessWidget {
         ),
       ),
       title: Text(category?.name ?? "Noma'lum kategoriya"),
-      subtitle: Text(
-        [
-          DateFormat('dd.MM.yyyy').format(transaction.date),
-          if (transaction.note.isNotEmpty) transaction.note,
-        ].join(' • '),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            [
+              DateFormat('dd.MM.yyyy').format(transaction.date),
+              if (transaction.note.isNotEmpty) transaction.note,
+            ].join(' • '),
+          ),
+          if (goal != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.savings_outlined, size: 14, color: AppColors.accent),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      "${goal!.name} maqsadiga to'lov",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
       trailing: Text(
         '$sign$amountText',

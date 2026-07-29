@@ -6,6 +6,7 @@ from django.db import models
 
 from apps.cards.models import Card
 from apps.categories.models import Category
+from apps.goals.models import Goal
 
 
 class Transaction(models.Model):
@@ -18,6 +19,9 @@ class Transaction(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="transactions")
     card = models.ForeignKey(
         Card, null=True, blank=True, on_delete=models.SET_NULL, related_name="transactions"
+    )
+    goal = models.ForeignKey(
+        Goal, null=True, blank=True, on_delete=models.SET_NULL, related_name="transactions"
     )
     amount = models.DecimalField(
         max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]

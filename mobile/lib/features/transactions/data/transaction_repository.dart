@@ -27,6 +27,7 @@ class TransactionRepository {
   Future<void> create({
     required int categoryId,
     required int? cardId,
+    required int? goalId,
     required double amount,
     required CategoryType type,
     required DateTime date,
@@ -38,6 +39,7 @@ class TransactionRepository {
         data: {
           'category': categoryId,
           if (cardId != null) 'card': cardId,
+          if (goalId != null) 'goal': goalId,
           'amount': amount.toStringAsFixed(2),
           'type': categoryTypeToJson(type),
           'date': _formatDate(date),

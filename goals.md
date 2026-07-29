@@ -1,13 +1,15 @@
 # Goals
 
-_Audit date: 2026-07-25, last updated 2026-07-28. Based on repo structure, README.md, git log, config files, and direct source inspection of `apps/`, `mobile/lib/`, and `web/src/`._
+_Audit date: 2026-07-25, last updated 2026-07-29 (mobile redesign committed). Based on repo structure, README.md, git log, config files, and direct source inspection of `apps/`, `mobile/lib/`, and `web/src/`._
 
 ## Current State
 
 - **Personal finance MVP** (B2C): Django REST Framework backend + Flutter mobile client + Next.js web client. Backend is feature-complete for the planned MVP scope; mobile client now covers transactions, goals, and the two core analytics screens (see "What Has Been Done"); a full Next.js web frontend was also added (commit `831dfda`) with routes for dashboard/transactions/goals/categories/cards/analytics — **not yet audited in this file**, `needs review` on its scope/parity with the mobile app and backend.
 - Backend apps: `users`, `categories`, `cards`, `transactions`, `goals`, `analytics` — all wired into `config/urls.py` under `/api/v1/`, JWT-authenticated (`djangorestframework-simplejwt`), documented via `drf-spectacular` (Swagger UI at `/api/schema/swagger-ui/`).
-- Mobile app (`mobile/`, Flutter, Riverpod + go_router + Dio): `auth` (login/register), `dashboard`, `transactions` (list + add), `goals` (list with progress bars + inline add-progress dialog, add-goal screen), and `analytics` (category-breakdown pie chart, monthly report with month-over-month comparison) all exist under `lib/features/`. `categories` and `cards` still exist only as read-only data layers (no management screens yet).
-- Git history is now structured: recent commits include `9b6ce79` (goals mobile feature), `6b328d8` (category-breakdown chart), `a320fec` (monthly report screen), on top of `831dfda` (Next.js web frontend) and `fe56335`/`c18c0a3` (transactions feature, backend validator fixes). Each mobile feature was committed separately, scoped to just that feature's files.
+- Mobile app (`mobile/`, Flutter, Riverpod + go_router + Dio): `auth` (login/register), `dashboard`, `transactions` (list + add), `goals` (list with progress bars + inline add-progress dialog, add-goal screen), `analytics` (category-breakdown pie chart, monthly report with month-over-month comparison), `categories` (full CRUD), and `cards` (full CRUD) all exist under `lib/features/`. **Every backend resource now has a mobile management surface** — the product-brief CRUD gap is closed.
+- Git history is now structured: recent commits include `9b6ce79` (goals mobile feature), `6b328d8` (category-breakdown chart), `a320fec` (monthly report screen), `4bc1775` (goal list parsing fix), `8fa1574` (categories management screen), `7cac1e8` (mobile "Hisob" theme + dashboard redesign), `5b95e80` (cards management screen), `7d4ced2` (restyled remaining mobile screens), on top of `831dfda` (Next.js web frontend) and `fe56335`/`c18c0a3` (transactions feature, backend validator fixes). Each feature/concern was committed separately, scoped to just its own files.
+- **Mobile "Hisob" premium redesign — done and committed.** `core/theme/app_theme.dart` defines the ledger-green `AppColors` palette with light/dark `ColorScheme`s applied globally via `ThemeData` (buttons, inputs, cards, app bars pick it up automatically). The dashboard got a gradient hero header with staggered card-entrance animations (`7cac1e8`); every other screen (auth, transactions, goals, categories, cards, analytics) had its one-off hardcoded `Colors.grey`/`Colors.red`/`Colors.green` swapped for theme-derived colors so dark mode renders correctly (`7d4ced2`).
+- **Web premium design-system pass — still uncommitted.** `web/src/` has new design tokens in `globals.css`/`tailwind.config.ts`, a redesigned `StatCard`, `Sidebar`, `PageHeader`, `GoalProgress`, dashboard page, auth layout, and a new `AnimatedBackground.tsx` (gradient orbs/sweep). This is a separate, larger piece of work from the mobile redesign and was intentionally left uncommitted — not reviewed or split into commits yet.
 - No CI/CD configuration exists (`.github/` absent, no other CI config found) — `needs review` on whether any external CI is configured elsewhere.
 - `mobile/test/` contains only the unmodified default Flutter counter-app smoke test (`widget_test.dart`) — effectively zero real test coverage on the mobile side. Backend (`apps/*/tests.py`) has real test coverage including explicit cross-user data-isolation tests.
 - Stray untracked artifacts observed in working tree during recent sessions (`mobile/_cardId`, an empty root-level `entries` file, screenshot PNGs, `.playwright-mcp/`) — likely accidental, `needs review` for cleanup; none have been added to git.
@@ -26,15 +28,18 @@ _Audit date: 2026-07-25, last updated 2026-07-28. Based on repo structure, READM
 **Mobile (Flutter) — auth, transactions, goals, and analytics:**
 - Auth: register/login screens, JWT token storage (`flutter_secure_storage`), auto-refresh-on-401 Dio interceptor, force-logout event bus, Uzbek-localized error messages, defensive catch-all error handling.
 - Transactions: domain model, paginated repository (list + create), transaction list screen (pull-to-refresh, empty/error states, income/expense color coding), add-transaction form (type toggle, amount, date picker, category dropdown filtered by type, optional card dropdown, note).
+- **Transaction-goal linking** (backend `apps/transactions/`, mobile `mobile/lib/features/transactions/`): expense transactions can now optionally link to a goal. Backend validates the goal belongs to the user and is only attached to expense-type transactions, then atomically adjusts the goal's `current_amount` on create/update/delete (row-locked via `select_for_update` to avoid races, capped at `target_amount`). Mobile add-transaction form shows a goal dropdown (expense only) and the transaction list tile shows a "paid toward goal" badge.
 - **Goals** (`mobile/lib/features/goals/`, commit `9b6ce79`): domain model, repository (`list`/`create`/`add-progress`), list screen with progress-bar cards and an inline "add progress" dialog, add-goal screen (name, target amount, optional deadline). Mirrors the transactions feature's layer structure.
 - **Analytics** (`mobile/lib/features/analytics/`, commits `6b328d8`, `a320fec`): category-breakdown pie chart screen (`fl_chart`, month/year navigation) and monthly report screen (income/expense/savings totals, % change vs. previous month, Uzbek insight text). Shared `uzMonthNames` constant extracted for both screens.
-- Categories/Cards: read-only repositories + Riverpod providers (`allCategoriesProvider`, `categoriesByTypeProvider`, `cardsProvider`) — built specifically to support the transaction form's dropdowns, not as standalone management screens.
-- Dashboard now has cards navigating to transactions, goals, category-breakdown, and monthly report.
+- **Categories management** (`mobile/lib/features/categories/`, commit `8fa1574`): the read-only data layer was extended into full CRUD — `category_repository.dart` (list/create/update/delete), `category_exception.dart`, a list screen and an add/edit screen. Edit/delete are gated on `is_default`/`user == null` to match the backend's `perform_update`/`perform_destroy` protection on global categories.
+- **Cards management** (`mobile/lib/features/cards/`, commit `5b95e80`): the read-only repository was extended to create/update/delete plus a `card_exception.dart`, and a list screen (empty state, delete confirmation, pull-to-refresh) and add/edit screen were added. Simpler than categories — the backend `Card` model has no global/default rows, so every row is user-owned and freely editable. The `last4` field is optional but validated as all-or-nothing 4 digits (`maxLength` + `digitsOnly` formatter guard typing; `_validateLast4` guards submission against pasted/partial values).
+- **Mobile theme + redesign** (commits `7cac1e8`, `7d4ced2`): see "Current State" above for the summary; every mobile screen now renders consistently through `AppColors`/`AppTheme`, `flutter analyze` is clean, and the widget test suite passes.
+- Dashboard now has cards navigating to transactions, goals, categories, cards, category-breakdown, and monthly report.
+- Bug fix (`4bc1775`): goal list response parsing corrected to match the backend's unpaginated goals endpoint.
 
 ## What Is Left
 
-- **Categories management screen** — no mobile UI to create/edit/delete user categories (backend supports it fully; note `apps/categories/views.py` blocks editing/deleting global (`user=null`) and `is_default=True` categories — UI must respect that, e.g. disable edit/delete on those rows).
-- **Cards management screen** — no mobile UI to create/edit/delete cards (backend supports it fully).
+- **Commit and review the web premium design pass** — mobile's redesign is done; the web side (`web/src/`) is still uncommitted working-tree changes (see "Current State").
 - **Monthly trend screen** (`analytics/monthly-trend/`, line/bar chart over N months) — backend endpoint exists and is implemented server-side but has no mobile screen yet; not explicitly in the original product-brief priority list but a natural analytics companion to category-breakdown and monthly-report.
 - **Web frontend (`web/`)** — added by a separate, unaudited change (commit `831dfda`); has route folders mirroring every backend feature (dashboard/transactions/goals/categories/cards/analytics). `needs review`: has this been checked for parity/consistency with the backend contracts the mobile app uses, and does it have its own test coverage?
 - **Offline-first architecture** — not started. No `sqflite`/`hive`/`drift`/`isar` dependency in `pubspec.yaml`; app is fully remote-API-dependent with no local persistence or sync layer.
@@ -45,23 +50,21 @@ _Audit date: 2026-07-25, last updated 2026-07-28. Based on repo structure, READM
 
 ## Next Goals
 
-1. Build **Categories management screen** (create/edit/delete user categories, respecting the backend's protection on default/global categories) — closes a real gap since users currently cannot customize categories from the app.
-2. Build **Cards management screen** (create/edit/delete cards) — same rationale.
-3. Decide whether to build the **monthly-trend chart screen** (line/bar over N months) or defer it — backend is ready either way.
-4. Add real mobile test coverage: start with the goals/analytics repositories and controllers added this session, plus the pre-existing transaction repository/controller, and at least one widget test per screen.
-5. Audit the `web/` Next.js frontend (commit `831dfda`) against this same rubric — current state, what's done, what's left — since it currently has no equivalent write-up here.
-6. Decide and document an offline-first strategy (or explicitly decide to defer it) — affects architecture choices for all remaining screens if adopted late.
-7. Add minimal CI (lint + `flutter analyze` + `pytest` on push) — currently no automated verification exists.
-8. Review and clean up the stray untracked artifacts and the `.claude-flow`/`.swarm` tracked-state files in git status.
+1. Review and commit the **web premium design pass** (`web/src/`) — split into sensible commits the way the mobile redesign was (theme/tokens separate from feature-specific changes if they overlap).
+2. Decide whether to build the **monthly-trend chart screen** (line/bar over N months) or defer it — backend is ready either way.
+3. Add real mobile test coverage: start with the goals/analytics repositories and controllers, plus the pre-existing transaction and cards repositories/controllers, and at least one widget test per screen.
+4. Audit the `web/` Next.js frontend (commit `831dfda`) against this same rubric — current state, what's done, what's left — since it currently has no equivalent write-up here.
+5. Decide and document an offline-first strategy (or explicitly decide to defer it) — affects architecture choices for all remaining screens if adopted late.
+6. Add minimal CI (lint + `flutter analyze` + `pytest` on push) — currently no automated verification exists.
+7. Review and clean up the stray untracked artifacts and the `.claude-flow`/`.swarm` tracked-state files in git status.
 
 ## Where to Continue
 
 **Immediate next file/module, in priority order:**
 
-1. `mobile/lib/features/categories/presentation/` — extend the existing read-only data layer with create/edit/delete screens; reuse the `goals`/`transactions` feature structure (`domain/`, `data/`, `presentation/providers/`, `presentation/screens/`) and gate edit/delete UI on `is_default`/`user == null` per the backend's `perform_update`/`perform_destroy` checks.
-2. `mobile/lib/features/cards/presentation/` — same pattern as categories.
-3. `mobile/lib/features/analytics/` — optionally add a `monthly-trend` screen if prioritized ahead of categories/cards.
-4. `mobile/test/` — backfill tests once each feature above stabilizes, rather than at the very end.
-5. A short audit pass over `web/src/` to bring it into this file's tracking.
+1. `web/src/` — review the uncommitted redesign (design tokens, `StatCard`, `Sidebar`, `PageHeader`, `GoalProgress`, dashboard page, auth layout, `AnimatedBackground.tsx`) and commit it, following the same split-by-concern approach used for mobile.
+2. `mobile/lib/features/analytics/` — optionally add a `monthly-trend` screen if prioritized ahead of the web review.
+3. `mobile/test/` — backfill tests now that mobile's feature set and redesign have both stabilized; this is the biggest remaining mobile gap.
+4. A short audit pass over `web/src/` to bring it into this file's tracking once committed.
 
-This order follows the dependency chain visible in the code: Categories and Cards management have zero mobile blockers (backend fully ready) and close the last major product-brief gaps on mobile. Monthly-trend, offline-first, and the web-frontend audit are lower urgency since the app is currently usable without them.
+Every backend resource now has a mobile CRUD surface and mobile's design pass is committed, so the remaining work is: land the web redesign, confidence (tests, CI), and scope decisions (monthly-trend, offline-first) — no missing product functionality remains on mobile.

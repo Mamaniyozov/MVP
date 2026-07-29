@@ -10,6 +10,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "id",
             "category",
             "card",
+            "goal",
             "amount",
             "type",
             "date",
@@ -28,5 +29,15 @@ class TransactionSerializer(serializers.ModelSerializer):
         card = attrs.get("card", getattr(self.instance, "card", None))
         if card is not None and card.user_id != request.user.id:
             raise serializers.ValidationError({"card": "Card does not belong to this user."})
+
+        goal = attrs.get("goal", getattr(self.instance, "goal", None))
+        tx_type = attrs.get("type", getattr(self.instance, "type", None))
+        if goal is not None:
+            if goal.user_id != request.user.id:
+                raise serializers.ValidationError({"goal": "Goal does not belong to this user."})
+            if tx_type != "expense":
+                raise serializers.ValidationError(
+                    {"goal": "Maqsad faqat xarajat turidagi tranzaksiyalarga bog'lanishi mumkin."}
+                )
 
         return attrs

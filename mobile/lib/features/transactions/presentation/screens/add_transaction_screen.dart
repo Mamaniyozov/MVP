@@ -5,6 +5,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/cards/presentation/providers/card_providers.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/categories/presentation/providers/category_providers.dart';
+import 'package:mobile/features/goals/presentation/providers/goal_list_controller.dart';
 import 'package:mobile/features/transactions/data/transaction_exception.dart';
 import 'package:mobile/features/transactions/data/transaction_repository.dart';
 import 'package:mobile/features/transactions/presentation/providers/transaction_list_controller.dart';
@@ -25,6 +26,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   DateTime _date = DateTime.now();
   int? _categoryId;
   int? _cardId;
+  int? _goalId;
   bool _isSubmitting = false;
 
   @override
@@ -40,6 +42,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _type = type;
       // The previously selected category may not belong to the new type.
       _categoryId = null;
+      // Goals can only be linked to expense transactions.
+      _goalId = null;
     });
   }
 
@@ -70,12 +74,16 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       await ref.read(transactionRepositoryProvider).create(
             categoryId: _categoryId!,
             cardId: _cardId,
+            goalId: _type == CategoryType.expense ? _goalId : null,
             amount: amount,
             type: _type,
             date: _date,
             note: _noteController.text.trim(),
           );
       await ref.read(transactionListControllerProvider.notifier).refresh();
+      if (_goalId != null) {
+        ref.invalidate(goalListControllerProvider);
+      }
       if (mounted) Navigator.of(context).pop();
     } on TransactionException catch (error) {
       if (!mounted) return;
@@ -194,6 +202,37 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     );
                   },
                 ),
+                if (_type == CategoryType.expense)
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final goalsAsync = ref.watch(goalListControllerProvider);
+                      return goalsAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (error, _) => const SizedBox.shrink(),
+                        data: (goals) {
+                          if (goals.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: DropdownButtonFormField<int?>(
+                              initialValue: _goalId,
+                              decoration: const InputDecoration(
+                                labelText: "Maqsadga to'lov (ixtiyoriy)",
+                                prefixIcon: Icon(Icons.savings_outlined),
+                              ),
+                              items: [
+                                const DropdownMenuItem(value: null, child: Text('Maqsadsiz')),
+                                ...goals.map((goal) => DropdownMenuItem(
+                                      value: goal.id,
+                                      child: Text(goal.name),
+                                    )),
+                              ],
+                              onChanged: (value) => setState(() => _goalId = value),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 InkWell(
                   onTap: _pickDate,
                   child: InputDecorator(
