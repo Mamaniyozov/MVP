@@ -27,7 +27,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F6B4C",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F3F6F4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E1712" },
+  ],
 };
 
 // Runs before paint so the stored/OS theme applies with no flash of the

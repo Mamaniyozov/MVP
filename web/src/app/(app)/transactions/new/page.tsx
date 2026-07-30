@@ -8,11 +8,8 @@ import { useLookups } from "@/lib/hooks/useLookups";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Field } from "@/components/ui/Field";
 import { Select } from "@/components/ui/Select";
+import { todayIso } from "@/lib/format";
 import type { TxType } from "@/lib/types";
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function NewTransactionPage() {
   const router = useRouter();
@@ -31,6 +28,7 @@ export default function NewTransactionPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -55,11 +53,17 @@ export default function NewTransactionPage() {
       <PageHeader title="Yangi tranzaksiya" subtitle="Xarajat yoki daromadingizni reestrga yozing." />
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-6" noValidate>
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-1 dark:bg-paper-dark">
+        <div
+          role="radiogroup"
+          aria-label="Tranzaksiya turi"
+          className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-1 dark:bg-paper-dark"
+        >
           {(["expense", "income"] as const).map((option) => (
             <button
               key={option}
               type="button"
+              role="radio"
+              aria-checked={type === option}
               onClick={() => {
                 setType(option);
                 setCategoryId("");
@@ -117,7 +121,7 @@ export default function NewTransactionPage() {
         ) : null}
 
         <div className="mt-2 flex gap-3">
-          <button type="submit" className="btn-primary flex-1" disabled={isSubmitting}>
+          <button type="submit" className="btn-primary flex-1" aria-busy={isSubmitting}>
             {isSubmitting ? "Saqlanmoqda…" : "Saqlash"}
           </button>
           <button type="button" className="btn-secondary" onClick={() => router.back()}>

@@ -26,6 +26,14 @@ export function formatFullDate(value: string): string {
   return fullDateFormatter.format(new Date(value));
 }
 
+/** Today as YYYY-MM-DD in the user's own timezone. `toISOString()` would
+ *  return the UTC date, which is the previous day for anyone behind UTC. */
+export function todayIso(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 const MONTH_NAMES = [
   "Yanvar",
   "Fevral",

@@ -8,7 +8,7 @@ export function Logo({ className = "", tone = "brand" }: { className?: string; t
         <path d="M6.5 13H15" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
         <path d="M6.5 17H12.5" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
       </svg>
-      Hisob
+      <span translate="no">Hisob</span>
     </span>
   );
 }

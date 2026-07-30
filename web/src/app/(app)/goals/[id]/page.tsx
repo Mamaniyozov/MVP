@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState, Spinner } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { GoalProgress } from "@/components/GoalProgress";
+import { formatFullDate } from "@/lib/format";
 
 export default function GoalDetailPage() {
   const params = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export default function GoalDetailPage() {
 
   async function handleAddProgress(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -48,7 +50,7 @@ export default function GoalDetailPage() {
 
   return (
     <div className="max-w-lg">
-      <PageHeader title={goal.data.name} subtitle={goal.data.deadline ? `Muddat: ${goal.data.deadline}` : undefined} />
+      <PageHeader title={goal.data.name} subtitle={goal.data.deadline ? `Muddat: ${formatFullDate(goal.data.deadline)}` : undefined} />
 
       <div className="card p-6">
         <GoalProgress goal={goal.data} linkToDetail={false} />
@@ -76,7 +78,7 @@ export default function GoalDetailPage() {
               {error}
             </p>
           ) : null}
-          <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          <button type="submit" className="btn-primary" aria-busy={isSubmitting}>
             {isSubmitting ? "Qo'shilmoqda…" : "Qo'shish"}
           </button>
         </form>

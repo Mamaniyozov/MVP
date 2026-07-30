@@ -17,6 +17,7 @@ export default function LoginPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -62,7 +63,7 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <button type="submit" className="btn-primary mt-2" disabled={isSubmitting}>
+        <button type="submit" className="btn-primary mt-2" aria-busy={isSubmitting}>
           {isSubmitting ? (
             <>
               <span

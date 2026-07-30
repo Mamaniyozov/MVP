@@ -37,12 +37,13 @@ export default function CardsPage() {
       await cardsApi.remove(card.id);
       list.reload();
     } catch (err) {
-      alert(apiErrorMessage(err));
+      setError(apiErrorMessage(err));
     }
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -68,14 +69,18 @@ export default function CardsPage() {
         <Field id="card-name-field" label="Nomi" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Masalan: Uzcard" />
         <Field
           label="Oxirgi 4 raqam"
+          name="card-last4"
+          inputMode="numeric"
+          autoComplete="off"
+          spellCheck={false}
           value={last4}
           onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
           placeholder="1234"
           maxLength={4}
         />
         <div className="flex items-end gap-2">
-          <button type="submit" className="btn-primary" disabled={isSubmitting}>
-            {editing ? "Saqlash" : "Qo'shish"}
+          <button type="submit" className="btn-primary" aria-busy={isSubmitting}>
+            {isSubmitting ? "Saqlanmoqda…" : editing ? "Saqlash" : "Qo'shish"}
           </button>
           {editing ? (
             <button type="button" className="btn-secondary" onClick={reset}>

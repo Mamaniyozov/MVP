@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { analyticsApi } from "@/lib/api/resources";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -19,8 +20,28 @@ function shiftMonth(year: number, month: number, offset: number): [number, numbe
   return [y, m];
 }
 
+// The viewed month lives in the URL so a period can be linked, bookmarked,
+// and walked back through with the browser's Back button.
 export default function AnalyticsPage() {
-  const [[year, month], setPeriod] = useState<[number, number]>([now.getFullYear(), now.getMonth() + 1]);
+  return (
+    <Suspense fallback={<Spinner />}>
+      <AnalyticsContent />
+    </Suspense>
+  );
+}
+
+function AnalyticsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const paramYear = Number(searchParams.get("year"));
+  const paramMonth = Number(searchParams.get("month"));
+  const year = Number.isInteger(paramYear) && paramYear > 1970 ? paramYear : now.getFullYear();
+  const month = paramMonth >= 1 && paramMonth <= 12 ? paramMonth : now.getMonth() + 1;
+
+  function setPeriod([y, m]: [number, number]) {
+    router.replace(`/analytics?year=${y}&month=${m}`, { scroll: false });
+  }
 
   const breakdown = useAsync(() => analyticsApi.categoryBreakdown(month, year), [month, year]);
   const trend = useAsync(() => analyticsApi.monthlyTrend(6), []);
@@ -37,18 +58,23 @@ export default function AnalyticsPage() {
               type="button"
               className="btn-secondary px-3 py-1.5 text-sm"
               onClick={() => setPeriod(shiftMonth(year, month, -1))}
+              aria-label="Oldingi oy"
             >
-              ←
+              <span aria-hidden>←</span>
             </button>
-            <span className="min-w-[9rem] text-center text-sm font-medium text-ink dark:text-ink-dark">
+            <span
+              aria-live="polite"
+              className="amount min-w-[9rem] text-center text-sm font-medium text-ink dark:text-ink-dark"
+            >
               {monthName(month)} {year}
             </span>
             <button
               type="button"
               className="btn-secondary px-3 py-1.5 text-sm"
               onClick={() => setPeriod(shiftMonth(year, month, 1))}
+              aria-label="Keyingi oy"
             >
-              →
+              <span aria-hidden>→</span>
             </button>
           </div>
         }

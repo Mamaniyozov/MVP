@@ -6,7 +6,7 @@ import { useAsync } from "@/lib/hooks/useAsync";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui/EmptyState";
 import { GoalProgress } from "@/components/GoalProgress";
-import { formatSum } from "@/lib/format";
+import { formatFullDate, formatSum } from "@/lib/format";
 
 export default function GoalsPage() {
   const list = useAsync(() => goalsApi.list().then(unwrapList), []);
@@ -47,7 +47,7 @@ export default function GoalsPage() {
             <div key={goal.id} className="card p-5">
               <GoalProgress goal={goal} />
               {goal.deadline ? (
-                <p className="mt-3 text-xs text-ink-muted">Muddat: {goal.deadline}</p>
+                <p className="mt-3 text-xs text-ink-muted">Muddat: {formatFullDate(goal.deadline)}</p>
               ) : null}
             </div>
           ))}

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { transactionsApi, type TransactionFilters } from "@/lib/api/resources";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { useLookups } from "@/lib/hooks/useLookups";
@@ -10,7 +11,7 @@ import { EmptyState, ErrorState, Spinner } from "@/components/ui/EmptyState";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Select } from "@/components/ui/Select";
 import { Field } from "@/components/ui/Field";
-import { dayGroupLabel } from "@/lib/format";
+import { dayGroupLabel, formatDate } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 
 const TYPE_CHIPS: { value: TransactionFilters["type"] | ""; label: string }[] = [
@@ -33,19 +34,58 @@ function groupByDay(items: Transaction[]): { label: string; items: Transaction[]
   return groups;
 }
 
+// Filters and page live in the URL, so a filtered view is shareable and the
+// Back button steps through filter changes instead of leaving the page.
 export default function TransactionsPage() {
-  const [filters, setFilters] = useState<TransactionFilters>({});
-  const [page, setPage] = useState(1);
+  return (
+    <Suspense fallback={<Spinner />}>
+      <TransactionsContent />
+    </Suspense>
+  );
+}
+
+function TransactionsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { categories, cards, categoryName, cardName } = useLookups();
+
+  const numberParam = (key: string) => {
+    const raw = Number(searchParams.get(key));
+    return Number.isInteger(raw) && raw > 0 ? raw : undefined;
+  };
+  const typeParam = searchParams.get("type");
+
+  const filters: TransactionFilters = {
+    type: typeParam === "income" || typeParam === "expense" ? typeParam : undefined,
+    category: numberParam("category"),
+    card: numberParam("card"),
+    date_from: searchParams.get("date_from") || undefined,
+    date_to: searchParams.get("date_to") || undefined,
+  };
+  const page = numberParam("page") ?? 1;
 
   const list = useAsync(
     () => transactionsApi.list({ ...filters, page }),
     [filters.type, filters.category, filters.card, filters.date_from, filters.date_to, page],
   );
 
+  function pushParams(next: Record<string, string | number | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value === undefined || value === "") params.delete(key);
+      else params.set(key, String(value));
+    }
+    const query = params.toString();
+    router.replace(query ? `/transactions?${query}` : "/transactions", { scroll: false });
+  }
+
   function updateFilter<K extends keyof TransactionFilters>(key: K, value: TransactionFilters[K]) {
-    setPage(1);
-    setFilters((prev) => ({ ...prev, [key]: value || undefined }));
+    // Any filter change invalidates the current page number.
+    pushParams({ [key]: value as string | number | undefined, page: undefined });
+  }
+
+  function setPage(next: number) {
+    pushParams({ page: next });
   }
 
   async function handleDelete(id: number) {
@@ -146,13 +186,14 @@ export default function TransactionsPage() {
                 <div className="card divide-y divide-line px-3 dark:divide-line-dark">
                   {group.items.map((tx) => (
                     <div key={tx.id} className="group flex items-center">
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <TransactionRow transaction={tx} categoryName={categoryName(tx.category)} cardName={cardName(tx.card)} />
                       </div>
                       <button
                         type="button"
                         onClick={() => handleDelete(tx.id)}
-                        className="mr-2 rounded-md px-2 py-1 text-xs font-medium text-ink-muted opacity-0 transition-opacity hover:bg-expense/10 hover:text-expense group-hover:opacity-100"
+                        aria-label={`${categoryName(tx.category)} — ${formatDate(tx.date)} tranzaksiyasini o'chirish`}
+                        className="mr-2 rounded-md px-2 py-1 text-xs font-medium text-ink-muted opacity-0 transition-opacity hover:bg-expense/10 hover:text-expense focus-visible:opacity-100 group-hover:opacity-100"
                       >
                         O&apos;chirish
                       </button>
@@ -169,7 +210,7 @@ export default function TransactionsPage() {
                 type="button"
                 className="btn-secondary px-3 py-1.5 text-xs"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage(page - 1)}
               >
                 Oldingi
               </button>
@@ -180,7 +221,7 @@ export default function TransactionsPage() {
                 type="button"
                 className="btn-secondary px-3 py-1.5 text-xs"
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage(page + 1)}
               >
                 Keyingi
               </button>

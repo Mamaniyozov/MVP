@@ -95,12 +95,13 @@ export default function CategoriesPage() {
       await categoriesApi.remove(category.id);
       list.reload();
     } catch (err) {
-      alert(apiErrorMessage(err));
+      setError(apiErrorMessage(err));
     }
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -133,8 +134,8 @@ export default function CategoriesPage() {
         </Select>
         <Field label="Belgi" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🚌" maxLength={4} />
         <div className="flex items-end gap-2">
-          <button type="submit" className="btn-primary" disabled={isSubmitting}>
-            {editing ? "Saqlash" : "Qo'shish"}
+          <button type="submit" className="btn-primary" aria-busy={isSubmitting}>
+            {isSubmitting ? "Saqlanmoqda…" : editing ? "Saqlash" : "Qo'shish"}
           </button>
           {editing ? (
             <button type="button" className="btn-secondary" onClick={startCreate}>

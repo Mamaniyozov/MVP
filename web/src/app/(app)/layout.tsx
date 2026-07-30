@@ -21,8 +21,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-paper dark:bg-paper-dark">
       <AnimatedBackground />
+      <a href="#main" className="skip-link">
+        Asosiy qismga o&apos;tish
+      </a>
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-y-auto px-8 py-8 lg:px-12">
+      {/* pt-20 clears the fixed mobile bar; on lg the bar is gone. */}
+      <main id="main" className="min-w-0 flex-1 overflow-y-auto px-4 pb-8 pt-20 sm:px-8 lg:px-12 lg:pt-8">
         <div className="mx-auto w-full max-w-5xl">{children}</div>
       </main>
     </div>

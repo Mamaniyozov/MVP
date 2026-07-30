@@ -21,14 +21,17 @@ export function TransactionRow({
 }) {
   const isIncome = transaction.type === "income";
 
+  // A real <button> when the row is actionable, so it is focusable and
+  // responds to Enter/Space for free; a plain <div> otherwise.
+  const Wrapper = onClick ? "button" : "div";
+
   return (
-    <div
-      className="ledger-row cursor-default"
+    <Wrapper
+      className={`ledger-row w-full text-left ${onClick ? "cursor-pointer" : "cursor-default"}`}
       style={{ borderLeftColor: ruleColorFor(transaction.category) }}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
+      {...(onClick ? { onClick, type: "button" as const } : {})}
     >
-      <span aria-hidden className="hidden" />
+      <span aria-hidden />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-ink dark:text-ink-dark">
           {categoryName}
@@ -42,6 +45,6 @@ export function TransactionRow({
       <p className={`amount text-sm font-semibold ${isIncome ? "text-income" : "text-expense"}`}>
         {formatSigned(transaction.amount, transaction.type)}
       </p>
-    </div>
+    </Wrapper>
   );
 }

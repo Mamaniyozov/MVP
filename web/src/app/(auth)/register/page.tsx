@@ -18,6 +18,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
     if (password !== password2) {
@@ -81,7 +82,7 @@ export default function RegisterPage() {
           </p>
         ) : null}
 
-        <button type="submit" className="btn-primary mt-2" disabled={isSubmitting}>
+        <button type="submit" className="btn-primary mt-2" aria-busy={isSubmitting}>
           {isSubmitting ? (
             <>
               <span

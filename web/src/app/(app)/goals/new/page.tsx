@@ -17,6 +17,7 @@ export default function NewGoalPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     try {
@@ -58,7 +59,7 @@ export default function NewGoalPage() {
         ) : null}
 
         <div className="mt-2 flex gap-3">
-          <button type="submit" className="btn-primary flex-1" disabled={isSubmitting}>
+          <button type="submit" className="btn-primary flex-1" aria-busy={isSubmitting}>
             {isSubmitting ? "Saqlanmoqda…" : "Saqlash"}
           </button>
           <button type="button" className="btn-secondary" onClick={() => router.back()}>
