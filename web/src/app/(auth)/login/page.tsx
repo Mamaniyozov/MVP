@@ -63,13 +63,23 @@ export default function LoginPage() {
         ) : null}
 
         <button type="submit" className="btn-primary mt-2" disabled={isSubmitting}>
-          {isSubmitting ? "Kirilmoqda…" : "Kirish"}
+          {isSubmitting ? (
+            <>
+              <span
+                aria-hidden
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white/35 border-t-white"
+              />
+              Kirilmoqda…
+            </>
+          ) : (
+            "Kirish"
+          )}
         </button>
       </form>
 
       <p className="mt-6 text-sm text-ink-muted">
         Hisobingiz yo&apos;qmi?{" "}
-        <Link href="/register" className="font-medium text-brand hover:underline">
+        <Link href="/register" className="font-medium text-brand hover:underline dark:text-income">
           Ro&apos;yxatdan o&apos;ting
         </Link>
       </p>

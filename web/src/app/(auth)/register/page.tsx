@@ -82,13 +82,23 @@ export default function RegisterPage() {
         ) : null}
 
         <button type="submit" className="btn-primary mt-2" disabled={isSubmitting}>
-          {isSubmitting ? "Yaratilmoqda…" : "Ro'yxatdan o'tish"}
+          {isSubmitting ? (
+            <>
+              <span
+                aria-hidden
+                className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white/35 border-t-white"
+              />
+              Yaratilmoqda…
+            </>
+          ) : (
+            "Ro'yxatdan o'tish"
+          )}
         </button>
       </form>
 
       <p className="mt-6 text-sm text-ink-muted">
         Allaqachon hisobingiz bormi?{" "}
-        <Link href="/login" className="font-medium text-brand hover:underline">
+        <Link href="/login" className="font-medium text-brand hover:underline dark:text-income">
           Kirish
         </Link>
       </p>

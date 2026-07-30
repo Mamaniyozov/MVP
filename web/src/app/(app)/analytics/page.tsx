@@ -83,6 +83,28 @@ export default function AnalyticsPage() {
         </div>
       ) : null}
 
+      {(breakdown.data?.[0] || report.data?.top_category_increase) ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {breakdown.data?.[0] ? (
+            <div className="card px-4 py-3.5">
+              <p className="text-xs text-ink-muted dark:text-ink-dark-muted">Eng katta xarajat kategoriyasi</p>
+              <p className="mt-1 text-sm font-semibold text-ink dark:text-ink-dark">
+                {breakdown.data[0].category} <span className="amount text-ink-muted">· {breakdown.data[0].percent}%</span>
+              </p>
+            </div>
+          ) : null}
+          {report.data?.top_category_increase ? (
+            <div className="card px-4 py-3.5">
+              <p className="text-xs text-ink-muted dark:text-ink-dark-muted">Eng ko&apos;p o&apos;sgan kategoriya</p>
+              <p className="mt-1 text-sm font-semibold text-expense">
+                {report.data.top_category_increase.name}{" "}
+                <span className="amount">↑ {report.data.top_category_increase.percent.toFixed(0)}%</span>
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-10 card p-6">
         <h2 className="font-display text-lg font-semibold text-ink dark:text-ink-dark">
           Kategoriya bo&apos;yicha xarajat
