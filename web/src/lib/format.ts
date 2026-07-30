@@ -50,3 +50,16 @@ export function monthLabel(yyyyMm: string): string {
 export function monthName(month: number): string {
   return MONTH_NAMES[month - 1] ?? String(month);
 }
+
+/** Groups a transaction date under "Bugun" / "Kecha" / a full date label, for a ledger timeline. */
+export function dayGroupLabel(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(date, today)) return "Bugun";
+  if (sameDay(date, yesterday)) return "Kecha";
+  return formatFullDate(value);
+}

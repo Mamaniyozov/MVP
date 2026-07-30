@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-paper dark:bg-paper-dark">
+      <AnimatedBackground />
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-y-auto px-8 py-8 lg:px-12">
         <div className="mx-auto w-full max-w-5xl">{children}</div>

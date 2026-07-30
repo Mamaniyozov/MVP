@@ -9,15 +9,22 @@ import { EmptyState, ErrorState, Spinner } from "@/components/ui/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { TransactionRow } from "@/components/TransactionRow";
 import { GoalProgress } from "@/components/GoalProgress";
-import { monthName } from "@/lib/format";
+import { formatSum, monthName } from "@/lib/format";
 
 const today = new Date();
 
 export default function DashboardPage() {
   const report = useAsync(() => analyticsApi.monthlyReport(today.getMonth() + 1, today.getFullYear()), []);
+  const breakdown = useAsync(() => analyticsApi.categoryBreakdown(today.getMonth() + 1, today.getFullYear()), []);
   const recent = useAsync(() => transactionsApi.list({ page: 1 }), []);
   const goals = useAsync(() => goalsApi.list().then(unwrapList), []);
   const { categoryName, cardName } = useLookups();
+
+  const income = report.data ? Number(report.data.current_month.income) : 0;
+  const expense = report.data ? Number(report.data.current_month.expense) : 0;
+  const savingsRate = income > 0 ? ((income - expense) / income) * 100 : null;
+  const biggestCategory = breakdown.data?.[0] ?? null;
+  const avgDailySpend = expense > 0 ? expense / today.getDate() : 0;
 
   return (
     <div>
@@ -36,7 +43,40 @@ export default function DashboardPage() {
       ) : report.error || !report.data ? (
         <ErrorState message={report.error ?? "Ma'lumot topilmadi"} onRetry={report.reload} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="card card-lift relative col-span-2 overflow-hidden px-6 py-6">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/[0.07] via-transparent to-transparent dark:from-income/10"
+            />
+            <p className="relative text-sm font-medium text-ink-muted dark:text-ink-dark-muted">
+              Bu oy jamg&apos;arma
+            </p>
+            <p className="amount relative mt-2 font-display text-4xl font-semibold leading-none tracking-tight text-brand dark:text-income sm:text-[2.75rem]">
+              {formatSum(report.data.current_month.savings)}
+            </p>
+            {typeof report.data.change_percent?.savings === "number" ? (
+              <p
+                className={`relative mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  report.data.change_percent.savings >= 0
+                    ? "bg-income/10 text-income"
+                    : "bg-expense/10 text-expense"
+                }`}
+              >
+                {report.data.change_percent.savings >= 0 ? "↑" : "↓"}{" "}
+                {Math.abs(report.data.change_percent.savings).toFixed(1)}% o&apos;tgan oyga nisbatan
+              </p>
+            ) : null}
+            {report.data.insights.length ? (
+              <div className="relative mt-5 flex items-start gap-2.5 border-t border-line pt-4 text-sm text-ink-muted dark:border-line-dark dark:text-ink-dark-muted">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="mt-0.5 shrink-0 text-accent" aria-hidden>
+                  <path d="M9.5 18h5m-4.5 3h4M12 3a6.5 6.5 0 00-3.5 12c.6.4 1 1 1 1.7V17h5v-.3c0-.7.4-1.3 1-1.7A6.5 6.5 0 0012 3z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>{report.data.insights.join(" ")}</span>
+              </div>
+            ) : null}
+          </div>
+
           <StatCard
             label="Daromad"
             value={report.data.current_month.income}
@@ -49,18 +89,30 @@ export default function DashboardPage() {
             tone="expense"
             changePercent={report.data.change_percent?.expense ?? null}
           />
-          <StatCard
-            label="Jamg'arma"
-            value={report.data.current_month.savings}
-            tone="brand"
-            changePercent={report.data.change_percent?.savings ?? null}
-          />
         </div>
       )}
 
-      {report.data?.insights.length ? (
-        <div className="mt-4 rounded-lg border border-accent/40 bg-accent-soft px-4 py-3 text-sm text-ink">
-          {report.data.insights.join(" ")}
+      {report.data ? (
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="card px-4 py-3.5">
+            <p className="text-xs text-ink-muted dark:text-ink-dark-muted">Jamg&apos;arma foizi</p>
+            <p className="amount mt-1 text-lg font-semibold text-ink dark:text-ink-dark">
+              {savingsRate === null ? "—" : `${savingsRate.toFixed(0)}%`}
+            </p>
+          </div>
+          <div className="card px-4 py-3.5">
+            <p className="text-xs text-ink-muted dark:text-ink-dark-muted">Eng katta kategoriya</p>
+            <p className="mt-1 truncate text-sm font-semibold text-ink dark:text-ink-dark">
+              {breakdown.isLoading ? "…" : biggestCategory ? biggestCategory.category : "—"}
+            </p>
+            {biggestCategory ? (
+              <p className="amount text-xs text-ink-muted">{formatSum(biggestCategory.total)}</p>
+            ) : null}
+          </div>
+          <div className="card px-4 py-3.5">
+            <p className="text-xs text-ink-muted dark:text-ink-dark-muted">Kunlik o&apos;rtacha xarajat</p>
+            <p className="amount mt-1 text-lg font-semibold text-ink dark:text-ink-dark">{formatSum(avgDailySpend)}</p>
+          </div>
         </div>
       ) : null}
 

@@ -6,8 +6,7 @@ import { apiErrorMessage } from "@/lib/api/client";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Field } from "@/components/ui/Field";
-import { EmptyState, ErrorState, Spinner } from "@/components/ui/EmptyState";
-import { IconCard } from "@/components/layout/icons";
+import { ErrorState, Spinner } from "@/components/ui/EmptyState";
 import type { Card } from "@/lib/types";
 
 export default function CardsPage() {
@@ -66,7 +65,7 @@ export default function CardsPage() {
       <PageHeader title="Kartalar" subtitle="Tranzaksiyalarni bog'lash uchun to'lov kartalaringiz." />
 
       <form onSubmit={handleSubmit} className="card mb-8 grid grid-cols-1 gap-3 p-4 sm:grid-cols-[1fr_120px_auto]">
-        <Field label="Nomi" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Masalan: Uzcard" />
+        <Field id="card-name-field" label="Nomi" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Masalan: Uzcard" />
         <Field
           label="Oxirgi 4 raqam"
           value={last4}
@@ -95,32 +94,61 @@ export default function CardsPage() {
         <Spinner />
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={list.reload} />
-      ) : list.data && list.data.length > 0 ? (
-        <div className="card divide-y divide-line dark:divide-line-dark">
-          {list.data.map((card) => (
-            <div key={card.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-strong dark:bg-brand/20 dark:text-white">
-                  <IconCard className="h-[18px] w-[18px]" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-ink dark:text-ink-dark">{card.name}</p>
-                  {card.last4 ? <p className="amount text-xs text-ink-muted">•••• {card.last4}</p> : null}
-                </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(list.data ?? []).map((card, i) => (
+            <div
+              key={card.id}
+              className="group relative flex aspect-[1.586/1] flex-col justify-between overflow-hidden rounded-card p-5 text-white shadow-card transition-transform duration-300 hover:-translate-y-0.5"
+              style={{
+                background:
+                  i % 2 === 0
+                    ? "linear-gradient(135deg, #12946a 0%, #0a4e38 62%, #063324 100%)"
+                    : "linear-gradient(135deg, #0e7a56 0%, #0a4e38 55%, #08301f 100%)",
+              }}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_12%,rgba(255,255,255,0.22),transparent_55%)]"
+              />
+              <div className="relative flex items-start justify-between text-xs uppercase tracking-wider text-white/70">
+                <span>Hisob</span>
+                <span>{card.last4 ? "•••• •••• •••• " + card.last4 : "raqamsiz"}</span>
               </div>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => startEdit(card)} className="btn-secondary px-2.5 py-1 text-xs">
+              <div className="relative">
+                <p className="amount text-lg tracking-[0.18em]">
+                  {card.last4 ? `•••• ${card.last4}` : "•••• ••••"}
+                </p>
+                <p className="mt-2 truncate text-sm font-medium text-white/90">{card.name}</p>
+              </div>
+              <div className="relative flex justify-end gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => startEdit(card)}
+                  className="cursor-pointer rounded-md bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur-sm transition-colors hover:bg-white/25"
+                >
                   Tahrirlash
                 </button>
-                <button type="button" onClick={() => handleDelete(card)} className="btn-danger px-2.5 py-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(card)}
+                  className="cursor-pointer rounded-md bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur-sm transition-colors hover:bg-expense/80"
+                >
                   O&apos;chirish
                 </button>
               </div>
             </div>
           ))}
+
+          <button
+            type="button"
+            onClick={() => document.getElementById("card-name-field")?.focus()}
+            className="flex aspect-[1.586/1] cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed border-line text-sm font-medium text-ink-muted transition-colors duration-200 hover:border-brand/40 hover:text-brand dark:border-line-dark dark:hover:border-income/40 dark:hover:text-income"
+          >
+            <span className="text-2xl leading-none">+</span>
+            Karta qo&apos;shish
+          </button>
         </div>
-      ) : (
-        <EmptyState title="Karta qo'shilmagan" description="Birinchi kartangizni qo'shing." />
       )}
     </div>
   );

@@ -30,9 +30,26 @@ export const viewport: Viewport = {
   themeColor: "#0F6B4C",
 };
 
+// Runs before paint so the stored/OS theme applies with no flash of the
+// wrong mode. Dark is the default look for Hisob; light is the opt-out.
+const THEME_INIT_SCRIPT = `
+  (function () {
+    try {
+      var stored = localStorage.getItem('hisob-theme');
+      var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    } catch (e) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="uz" className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <AuthProvider>{children}</AuthProvider>
       </body>

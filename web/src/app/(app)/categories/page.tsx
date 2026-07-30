@@ -25,28 +25,38 @@ function CategoryGroup({
   return (
     <div>
       <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wide text-ink-muted">{title}</h2>
-      <div className="card divide-y divide-line dark:divide-line-dark">
+      <div className="flex flex-wrap gap-2.5">
         {items.map((c) => (
-          <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-lg leading-none">{c.icon || "•"}</span>
-              <span className="text-sm font-medium text-ink dark:text-ink-dark">{c.name}</span>
-              {c.is_default ? (
-                <span className="rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink-muted dark:bg-white/5">
-                  standart
-                </span>
-              ) : null}
-            </div>
-            {!c.is_default ? (
-              <div className="flex gap-1">
-                <button type="button" onClick={() => onEdit(c)} className="btn-secondary px-2.5 py-1 text-xs">
+          <div
+            key={c.id}
+            className="group flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-1.5 shadow-[0_1px_2px_rgba(18,35,28,0.04)] transition-colors duration-200 hover:border-brand/30 dark:border-line-dark dark:bg-surface-dark dark:hover:border-income/30"
+          >
+            <span className="text-base leading-none">{c.icon || "•"}</span>
+            <span className="text-sm font-medium text-ink dark:text-ink-dark">{c.name}</span>
+            {c.is_default ? (
+              <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] text-ink-muted dark:bg-white/5">
+                standart
+              </span>
+            ) : (
+              <span className="flex items-center gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => onEdit(c)}
+                  className="cursor-pointer rounded-full px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:bg-brand/10 hover:text-brand dark:hover:bg-income/10 dark:hover:text-income"
+                  aria-label={`${c.name} tahrirlash`}
+                >
                   Tahrirlash
                 </button>
-                <button type="button" onClick={() => onDelete(c)} className="btn-danger px-2.5 py-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => onDelete(c)}
+                  className="cursor-pointer rounded-full px-2 py-1 text-[11px] font-medium text-ink-muted transition-colors hover:bg-expense/10 hover:text-expense"
+                  aria-label={`${c.name} o'chirish`}
+                >
                   O&apos;chirish
                 </button>
-              </div>
-            ) : null}
+              </span>
+            )}
           </div>
         ))}
       </div>

@@ -10,6 +10,28 @@ import { EmptyState, ErrorState, Spinner } from "@/components/ui/EmptyState";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Select } from "@/components/ui/Select";
 import { Field } from "@/components/ui/Field";
+import { dayGroupLabel } from "@/lib/format";
+import type { Transaction } from "@/lib/types";
+
+const TYPE_CHIPS: { value: TransactionFilters["type"] | ""; label: string }[] = [
+  { value: "", label: "Barchasi" },
+  { value: "income", label: "Daromad" },
+  { value: "expense", label: "Xarajat" },
+];
+
+function groupByDay(items: Transaction[]): { label: string; items: Transaction[] }[] {
+  const groups: { label: string; items: Transaction[] }[] = [];
+  for (const tx of items) {
+    const label = dayGroupLabel(tx.date);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.items.push(tx);
+    } else {
+      groups.push({ label, items: [tx] });
+    }
+  }
+  return groups;
+}
 
 export default function TransactionsPage() {
   const [filters, setFilters] = useState<TransactionFilters>({});
@@ -46,17 +68,27 @@ export default function TransactionsPage() {
         }
       />
 
-      <div className="card mb-6 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
-        <Select
-          label="Turi"
-          value={filters.type ?? ""}
-          onChange={(e) => updateFilter("type", (e.target.value || undefined) as TransactionFilters["type"])}
-        >
-          <option value="">Barchasi</option>
-          <option value="income">Daromad</option>
-          <option value="expense">Xarajat</option>
-        </Select>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {TYPE_CHIPS.map((chip) => {
+          const active = (filters.type ?? "") === chip.value;
+          return (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => updateFilter("type", (chip.value || undefined) as TransactionFilters["type"])}
+              className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                active
+                  ? "bg-brand-soft text-brand-strong dark:bg-income/15 dark:text-income"
+                  : "border border-line bg-surface text-ink-muted hover:border-brand/30 dark:border-line-dark dark:bg-surface-dark dark:hover:border-income/30"
+              }`}
+            >
+              {chip.label}
+            </button>
+          );
+        })}
+      </div>
 
+      <div className="card mb-6 grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
         <Select
           label="Kategoriya"
           value={filters.category ?? ""}
@@ -105,19 +137,28 @@ export default function TransactionsPage() {
         <ErrorState message={list.error} onRetry={list.reload} />
       ) : list.data && list.data.results.length > 0 ? (
         <>
-          <div className="card divide-y divide-line px-3 dark:divide-line-dark">
-            {list.data.results.map((tx) => (
-              <div key={tx.id} className="group flex items-center">
-                <div className="flex-1">
-                  <TransactionRow transaction={tx} categoryName={categoryName(tx.category)} cardName={cardName(tx.card)} />
+          <div className="flex flex-col gap-5">
+            {groupByDay(list.data.results).map((group) => (
+              <div key={group.label}>
+                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-muted dark:text-ink-dark-muted">
+                  {group.label}
+                </h3>
+                <div className="card divide-y divide-line px-3 dark:divide-line-dark">
+                  {group.items.map((tx) => (
+                    <div key={tx.id} className="group flex items-center">
+                      <div className="flex-1">
+                        <TransactionRow transaction={tx} categoryName={categoryName(tx.category)} cardName={cardName(tx.card)} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(tx.id)}
+                        className="mr-2 rounded-md px-2 py-1 text-xs font-medium text-ink-muted opacity-0 transition-opacity hover:bg-expense/10 hover:text-expense group-hover:opacity-100"
+                      >
+                        O&apos;chirish
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(tx.id)}
-                  className="mr-2 rounded-md px-2 py-1 text-xs font-medium text-ink-muted opacity-0 transition-opacity hover:bg-expense/10 hover:text-expense group-hover:opacity-100"
-                >
-                  O&apos;chirish
-                </button>
               </div>
             ))}
           </div>

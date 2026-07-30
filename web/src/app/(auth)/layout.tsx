@@ -9,7 +9,15 @@ const STATS = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-brand px-12 py-10 text-white lg:flex">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-grad-brand px-12 py-10 text-white lg:flex">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-income/25 blur-[120px]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-accent/20 blur-[110px]"
+        />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.14]"
@@ -40,7 +48,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </dl>
       </section>
 
-      <section className="flex items-center justify-center px-6 py-12">
+      <section className="relative flex items-center justify-center overflow-hidden px-6 py-12">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div className="bg-orb bg-orb-1" style={{ opacity: 0.7 }} />
+          <div className="bg-orb bg-orb-2" style={{ opacity: 0.7 }} />
+        </div>
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Logo />
