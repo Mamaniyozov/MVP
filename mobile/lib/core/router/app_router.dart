@@ -8,6 +8,7 @@ import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/category_breakdown_screen.dart';
 import 'package:mobile/features/analytics/presentation/screens/monthly_report_screen.dart';
+import 'package:mobile/features/analytics/presentation/screens/monthly_trend_screen.dart';
 import 'package:mobile/features/cards/domain/card.dart';
 import 'package:mobile/features/cards/presentation/screens/add_edit_card_screen.dart';
 import 'package:mobile/features/cards/presentation/screens/card_list_screen.dart';
@@ -90,6 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.monthlyReport,
         builder: (context, state) => const MonthlyReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.monthlyTrend,
+        builder: (context, state) => const MonthlyTrendScreen(),
       ),
       GoRoute(
         path: AppRoutes.categories,

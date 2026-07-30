@@ -4,6 +4,7 @@ import 'package:mobile/core/api/api_client.dart';
 import 'package:mobile/features/analytics/data/analytics_exception.dart';
 import 'package:mobile/features/analytics/domain/category_breakdown_entry.dart';
 import 'package:mobile/features/analytics/domain/monthly_report.dart';
+import 'package:mobile/features/analytics/domain/monthly_trend_entry.dart';
 
 class AnalyticsRepository {
   AnalyticsRepository(this._dio);
@@ -22,6 +23,23 @@ class AnalyticsRepository {
       return response.data!
           .cast<Map<String, dynamic>>()
           .map(CategoryBreakdownEntry.fromJson)
+          .toList();
+    } on DioException catch (error) {
+      throw AnalyticsException(_networkErrorMessage(error));
+    } catch (_) {
+      throw const AnalyticsException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
+    }
+  }
+
+  Future<List<MonthlyTrendEntry>> monthlyTrend({int months = 6}) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        '/api/v1/analytics/monthly-trend/',
+        queryParameters: {'months': months},
+      );
+      return response.data!
+          .cast<Map<String, dynamic>>()
+          .map(MonthlyTrendEntry.fromJson)
           .toList();
     } on DioException catch (error) {
       throw AnalyticsException(_networkErrorMessage(error));

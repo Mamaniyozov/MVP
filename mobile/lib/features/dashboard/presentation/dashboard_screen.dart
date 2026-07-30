@@ -40,6 +40,13 @@ class DashboardScreen extends ConsumerWidget {
         route: AppRoutes.monthlyReport,
       ),
       (
+        icon: Icons.show_chart,
+        title: 'Oylik dinamika',
+        subtitle: "So'nggi 6 oy davomida daromad va xarajat",
+        tone: AppColors.brand,
+        route: AppRoutes.monthlyTrend,
+      ),
+      (
         icon: Icons.label_outline,
         title: 'Kategoriyalar',
         subtitle: "O'zingizning kategoriyalaringizni boshqaring",
