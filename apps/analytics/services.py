@@ -16,7 +16,9 @@ def _shift_month(year: int, month: int, offset: int) -> tuple[int, int]:
 def _percent_change(current, previous):
     if not previous:
         return None
-    return round(float(current - previous) / float(previous) * 100, 2)
+    diff = Decimal(str(current)) - Decimal(str(previous))
+    pct = (diff / Decimal(str(previous))) * Decimal("100")
+    return round(float(pct), 2)
 
 
 def get_category_breakdown(user, month: int, year: int) -> list[dict]:
@@ -35,7 +37,7 @@ def get_category_breakdown(user, month: int, year: int) -> list[dict]:
         {
             "category": row["category__name"],
             "total": row["total"],
-            "percent": round(float(row["total"]) / float(grand_total) * 100, 2),
+            "percent": round(float((Decimal(str(row["total"])) / grand_total) * Decimal("100")), 2),
         }
         for row in rows
     ]
@@ -45,8 +47,11 @@ def get_monthly_trend(user, months: int = 6) -> list[dict]:
     today = date.today()
     month_keys = [_shift_month(today.year, today.month, -i) for i in range(months - 1, -1, -1)]
 
+    start_year, start_month = month_keys[0]
+    start_date = date(start_year, start_month, 1)
+
     rows = (
-        Transaction.objects.filter(user=user)
+        Transaction.objects.filter(user=user, date__gte=start_date)
         .annotate(y=ExtractYear("date"), m=ExtractMonth("date"))
         .values("y", "m", "type")
         .annotate(total=Sum("amount"))
@@ -61,6 +66,7 @@ def get_monthly_trend(user, months: int = 6) -> list[dict]:
         }
         for year, month in month_keys
     ]
+
 
 
 def _month_totals(user, year: int, month: int) -> dict:

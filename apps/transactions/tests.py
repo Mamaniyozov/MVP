@@ -154,3 +154,52 @@ def test_ordering_by_amount():
     response = client.get("/api/v1/transactions/", {"ordering": "amount"})
     amounts = [item["amount"] for item in response.data["results"]]
     assert amounts == ["100.00", "500.00", "900.00"]
+
+
+@pytest.mark.django_db
+def test_export_csv_success():
+    user = User.objects.create_user(username="csv@example.com", email="csv@example.com", password="Str0ngPass!1")
+    category = Category.objects.filter(user=user, type="expense").first()
+    Transaction.objects.create(
+        user=user, category=category, amount="25000.00", type="expense", date="2026-07-15", note="Lunch"
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get("/api/v1/transactions/export/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/csv; charset=utf-8"
+    assert "attachment; filename=" in response["Content-Disposition"]
+    content = response.content.decode("utf-8")
+    assert "Sana,Turi,Kategoriya,Summa (UZS),Karta,Izoh" in content
+    assert "Lunch" in content
+
+
+@pytest.mark.django_db
+def test_create_recurring_transaction_success():
+    user = User.objects.create_user(username="rec@example.com", email="rec@example.com", password="Str0ngPass!1")
+    category = Category.objects.filter(user=user, type="expense").first()
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        "/api/v1/transactions/recurring/",
+        {
+            "category": category.id,
+            "amount": "50000.00",
+            "type": "expense",
+            "frequency": "monthly",
+            "next_date": "2026-08-01",
+            "note": "Internet bill",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.data["amount"] == "50000.00"
+    assert response.data["frequency"] == "monthly"
+    assert response.data["is_active"] is True
+
+

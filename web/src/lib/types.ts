@@ -72,3 +72,19 @@ export interface MonthlyReport {
   top_category_increase: { name: string; percent: number } | null;
   insights: string[];
 }
+
+export interface Budget {
+  id: number;
+  category_id: number;
+  category_detail: Category;
+  amount_limit: string;
+  month: number;
+  year: number;
+  spent_amount: string;
+  remaining_amount: string;
+  spent_percent: number;
+  is_exceeded: boolean;
+  created_at: string;
+  updated_at: string;
+}
+

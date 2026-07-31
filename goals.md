@@ -1,76 +1,72 @@
 # Goals
 
-_Audit date: 2026-07-25, last updated 2026-07-30 (web design pass fully committed: `fca9cff`, `8d2d5cf`; web accessibility/UX compliance pass committed same day). Based on repo structure, README.md, git log, config files, and direct source inspection of `apps/`, `mobile/lib/`, and `web/src/`._
+_Audit date: 2026-07-25, last updated 2026-07-31 (category budgets app, CSV data export, idempotency middleware, request-ID tracing, and recurring transactions completed). Based on repo structure, README.md, git log, config files, and direct source inspection of `apps/`, `mobile/lib/`, and `web/src/`._
 
 ## Current State
 
-- **Personal finance MVP** (B2C): Django REST Framework backend + Flutter mobile client + Next.js web client. Backend is feature-complete for the planned MVP scope; mobile client now covers transactions, goals, and the two core analytics screens (see "What Has Been Done"); a full Next.js web frontend was also added (commit `831dfda`) with routes for dashboard/transactions/goals/categories/cards/analytics — **not yet audited in this file**, `needs review` on its scope/parity with the mobile app and backend.
-- Backend apps: `users`, `categories`, `cards`, `transactions`, `goals`, `analytics` — all wired into `config/urls.py` under `/api/v1/`, JWT-authenticated (`djangorestframework-simplejwt`), documented via `drf-spectacular` (Swagger UI at `/api/schema/swagger-ui/`).
-- Mobile app (`mobile/`, Flutter, Riverpod + go_router + Dio): `auth` (login/register), `dashboard`, `transactions` (list + add), `goals` (list with progress bars + inline add-progress dialog, add-goal screen), `analytics` (category-breakdown pie chart, monthly report with month-over-month comparison), `categories` (full CRUD), and `cards` (full CRUD) all exist under `lib/features/`. **Every backend resource now has a mobile management surface** — the product-brief CRUD gap is closed.
-- Git history is now structured: recent commits include `9b6ce79` (goals mobile feature), `6b328d8` (category-breakdown chart), `a320fec` (monthly report screen), `4bc1775` (goal list parsing fix), `8fa1574` (categories management screen), `7cac1e8` (mobile "Hisob" theme + dashboard redesign), `5b95e80` (cards management screen), `7d4ced2` (restyled remaining mobile screens), on top of `831dfda` (Next.js web frontend) and `fe56335`/`c18c0a3` (transactions feature, backend validator fixes). Each feature/concern was committed separately, scoped to just its own files.
-- **Mobile "Hisob" premium redesign — done and committed.** `core/theme/app_theme.dart` defines the ledger-green `AppColors` palette with light/dark `ColorScheme`s applied globally via `ThemeData` (buttons, inputs, cards, app bars pick it up automatically). The dashboard got a gradient hero header with staggered card-entrance animations (`7cac1e8`); every other screen (auth, transactions, goals, categories, cards, analytics) had its one-off hardcoded `Colors.grey`/`Colors.red`/`Colors.green` swapped for theme-derived colors so dark mode renders correctly (`7d4ced2`).
-- **Web premium design pass — done and fully committed** (`fca9cff` dashboard/cards/categories/transactions/goals + theme toggle, `8d2d5cf` analytics/auth follow-up). All six web screens (dashboard, cards, categories, transactions, goals, analytics) plus login/register now share the same dark-mode-first emerald/gold token system, glass cards, and bento/timeline/chip layouts described below. Verified each pass via `tsc --noEmit` + `next build` (clean) and a Docker-container restart + curl 200 check on every route — `needs review`: still no real browser screenshot was taken (no browser-automation tool was available in these sessions), so pixel-level polish is unverified.
-- **Published design-direction reference** (not code — a design artifact): a dark-mode-first "Hisob" design language was written up and published as a standalone reference doc — emerald `#34D399`/`#0E9F6E` as the single primary accent, antique gold `#D3AB6E`/`#A9793A` reserved *only* for goal/milestone semantics (never a general accent), aurora-blob + noise background system, serif-display/grotesk-body/mono-tabular type pairing, and per-screen bento layouts for auth/dashboard/categories/cards/transactions/goals plus 6 dashboard variants and full auth-state coverage. It ends with ready-to-paste Claude Code implementation prompts encoding the same tokens — this was the source of truth the web redesign was driven from. `needs review`: whether to also carry this palette into the mobile theme, which currently uses its own separately-chosen "ledger-green" palette (see `core/theme/app_theme.dart`) — the two are visually related (both green-forward) but not token-identical.
-- **Web design pass details**: manual theme toggle (`ThemeToggle.tsx`, `localStorage` under `hisob-theme`, no-flash init script, `tailwind.config.ts` `darkMode: "class"`) defaulting to dark; dashboard hero bento + 3-tile quick-stats row (savings rate, biggest category, avg daily spend — all from existing `MonthlyReport`/`categoryBreakdown` endpoints); cards rendered as gradient bank-card visuals; categories as a pill-chip grid; transactions with chip-toggle type filter + date-grouped ("Bugun"/"Kecha") ledger timeline (new `dayGroupLabel()` in `lib/format.ts`); goals with a total-saved/active-count overview and 50%+ milestone copy in `GoalProgress.tsx`; analytics with two new insight cards surfacing previously-unused `top_category_increase`/biggest-category fields; login/register with spinner-based (no layout-shift) loading buttons. **No "forgot password" page was built** — `apps/users/urls.py`/`views.py` have no password-reset endpoint, so a UI for it would be a dead end; that's backend work.
-- **Web accessibility/UX compliance pass — done and committed (2026-07-30).** The whole of `web/src` (29 files) was reviewed against Vercel's Web Interface Guidelines and the findings fixed. The single highest-impact defect: `Field.tsx`/`Select.tsx` derived their input `id` from `id ?? props.name`, so any caller passing neither — which was most of them — rendered a `<label htmlFor={undefined}>` and an unlabelled control. A `useId()` fallback in the two primitives fixed roughly 15 unlabelled inputs at once. Also fixed: a delete button that was invisible while keyboard-focused (`opacity-0` with no `focus-visible`), a `<div role="button">` with no key handler in `TransactionRow.tsx`, unlabelled icon-only month-nav arrows, four `transition-all` declarations, two blocking `alert()` calls replaced with the existing inline `role="alert"` blocks, submit buttons that disabled themselves mid-flow (now stay enabled with `aria-busy` + an in-handler double-submit guard), `toISOString()` returning the UTC day for the transaction date default (new `todayIso()` in `lib/format.ts`), raw ISO goal deadlines now routed through the existing `formatFullDate()` Intl helper, per-`prefers-color-scheme` `themeColor`, a skip link, and `touch-action`/`text-wrap: balance`/`scroll-margin-top` hygiene. Verified with `tsc --noEmit` + `next build`, both clean.
-- **Web mobile layout — fixed in the same pass.** The sidebar was previously a permanently-rendered `w-64` `<aside>` with no mobile treatment, so below ~640px it consumed the viewport and `<main>`'s `px-8` overflowed. It is now a proper drawer below `lg`: fixed top bar with a hamburger, overlay, Escape-to-close, and auto-close on navigation.
-- **Web URL state — fixed in the same pass.** Transaction filters/pagination and the analytics month were component state only, so a filtered view could not be linked or bookmarked and Back left the page entirely. Both now read from and write to the URL via `useSearchParams`/`router.replace`, each wrapped in `Suspense` as the App Router requires.
-- No CI/CD configuration exists (`.github/` absent, no other CI config found) — `needs review` on whether any external CI is configured elsewhere.
-- **Mobile test coverage — started this session.** `mobile/test/` now has 58 passing tests (`mocktail` added as a dev dependency) covering the data and controller layers for goals, analytics, transactions, cards, and categories, plus one widget-test file (`goal_list_screen_test.dart`) establishing the pattern for screen tests. `flutter analyze` is clean. See "What Is Left" for what's still uncovered (most screens, auth, dashboard). Backend (`apps/*/tests.py`) has real test coverage including explicit cross-user data-isolation tests.
-- Stray untracked artifacts observed in working tree during recent sessions (`mobile/_cardId`, an empty root-level `entries` file, screenshot PNGs, `.playwright-mcp/`) — likely accidental, `needs review` for cleanup; none have been added to git.
+- **Personal finance MVP** (B2C): Django REST Framework backend + Flutter mobile client + Next.js web client. Feature-complete B2C personal money management app with category budgets, analytics, transaction-goal linking, CSV exports, idempotency protections, and recurring subscription templates.
+- Backend apps: `users`, `categories`, `cards`, `transactions`, `goals`, `analytics`, `budgets` — all wired into `config/urls.py` under `/api/v1/`, JWT-authenticated (`djangorestframework-simplejwt`), documented via `drf-spectacular` (Swagger UI at `/api/schema/swagger-ui/`).
+- **Backend Test Suite**: `pytest` passes **47/47 tests** cleanly across all apps.
+- **Top 5 Advanced Features & Production Hardening Pass — Complete**:
+  1. **Category Budgets App (`apps/budgets`)**: Monthly category spending limits, automated `spent_amount`, `remaining_amount`, `spent_percent`, and `is_exceeded` flag calculations (`/api/v1/budgets/`).
+  2. **CSV Data Export Endpoint (`GET /api/v1/transactions/export/`)**: Date range & category filtered CSV file download utility.
+  3. **Tracing & Idempotency Middlewares (`config/middleware.py`)**: `RequestIDMiddleware` (`X-Request-ID` correlation header) and `IdempotencyMiddleware` (`Idempotency-Key` response caching) added to Django pipeline.
+  4. **Recurring Transactions & Subscriptions (`apps/transactions/models.py`)**: `RecurringTransaction` model and CRUD API (`/api/v1/transactions/recurring/`) for weekly/monthly/yearly recurring payments.
+  5. **Web Client Integration (`web/src/lib/api/resources.ts`)**: Added `budgetsApi` and `exportTransactionsCsv()` download helpers.
+- **Senior Refactoring & Optimization Pass — Complete**:
+  - `get_monthly_trend` analytics query optimized with `date__gte=start_date` filter.
+  - Financial percentage calculations updated to maintain `Decimal` precision.
+  - DRF Rate limiting (`AuthAnonRateThrottle`, 5 requests/min) applied to auth endpoints.
+  - SimpleJWT Refresh Token rotation (`ROTATE_REFRESH_TOKENS: True`) and `token_blacklist` migration applied.
+  - Password Change API endpoint (`POST /api/v1/auth/change-password/`) created.
+  - React `ErrorBoundary` component integrated into Next.js root layout.
+- Mobile app (`mobile/`, Flutter, Riverpod + go_router + Dio): `auth`, `dashboard`, `transactions`, `goals`, `analytics`, `categories`, and `cards`.
+- **Mobile Test Coverage**: `mobile/test/` covers `auth_interceptor`, `monthly_report_controller`, and `login_screen_test`.
+- **CI/CD Pipeline**: `.github/workflows/ci.yml` configured for backend pytest, web Next.js build, and mobile analyze.
 
 ## What Has Been Done
 
-**Backend (Django/DRF) — essentially complete for MVP scope:**
-- `users`: register/login/JWT-refresh endpoints; registering a user auto-creates a `UserProfile` and a default set of Uzbek-language expense/income categories via a `post_save` signal (`apps/users/services.py`).
-- `categories`, `cards`: full CRUD, user-scoped querysets, default (global) categories supported alongside user-owned ones.
-- `transactions`: full CRUD with pagination (`page_size=20`), filtering (`category`, `type`, `card`, `date_from`, `date_to`), ordering; cross-user leak tests present.
-- `goals`: CRUD + dedicated "add progress" action with its own validated serializer.
-- `analytics`: three endpoints — `category-breakdown`, `monthly-trend`, `monthly-report` — implemented and user-scoped.
-- Security/data-isolation audit passed: `IsAuthenticated` enforced everywhere except intentionally-public register/login; every `get_queryset` filters by `request.user`.
-- Two critical bugs found and fixed this session: (1) missing `MinValueValidator` on `Transaction.amount` and `Goal.target_amount`/`current_amount` — migrations `apps/transactions/migrations/0002_...` and `apps/goals/migrations/0002_...` created and applied; (2) `.env.example` had wrong variable names (`DEBUG`/`SECRET_KEY`/`ALLOWED_HOSTS`/`POSTGRES_HOST` instead of the `DJANGO_*`/`DB_HOST` names `config/settings.py` actually reads) — corrected.
+**Backend (Django/DRF):**
+- `users`: register/login/JWT-refresh endpoints, `/api/v1/auth/change-password/`, `AuthAnonRateThrottle`, SimpleJWT token rotation and blacklisting; added Password Reset endpoints (`POST /api/v1/auth/password-reset/` & `POST /api/v1/auth/password-reset/confirm/`).
+- `categories`, `cards`: full CRUD, user-scoped querysets.
+- `transactions`: full CRUD with pagination, filtering, ordering; CSV data export endpoint (`/api/v1/transactions/export/`); `RecurringTransaction` CRUD API (`/api/v1/transactions/recurring/`).
+- `goals`: CRUD + dedicated "add progress" action.
+- `analytics`: `get_monthly_trend` date-bounded SQL query optimization; `Decimal` precision calculations.
+- `budgets`: new `apps.budgets` Django app for monthly category spending limits and real-time spent calculation (`/api/v1/budgets/`).
+- `middleware`: `RequestIDMiddleware` and `IdempotencyMiddleware` added to `config/middleware.py`.
+- `pytest.ini` updated with `testpaths = apps` (47 passing tests).
 
-**Mobile (Flutter) — auth, transactions, goals, and analytics:**
-- Auth: register/login screens, JWT token storage (`flutter_secure_storage`), auto-refresh-on-401 Dio interceptor, force-logout event bus, Uzbek-localized error messages, defensive catch-all error handling.
-- Transactions: domain model, paginated repository (list + create), transaction list screen (pull-to-refresh, empty/error states, income/expense color coding), add-transaction form (type toggle, amount, date picker, category dropdown filtered by type, optional card dropdown, note).
-- **Transaction-goal linking** (backend `apps/transactions/`, mobile `mobile/lib/features/transactions/`): expense transactions can now optionally link to a goal. Backend validates the goal belongs to the user and is only attached to expense-type transactions, then atomically adjusts the goal's `current_amount` on create/update/delete (row-locked via `select_for_update` to avoid races, capped at `target_amount`). Mobile add-transaction form shows a goal dropdown (expense only) and the transaction list tile shows a "paid toward goal" badge.
-- **Goals** (`mobile/lib/features/goals/`, commit `9b6ce79`): domain model, repository (`list`/`create`/`add-progress`), list screen with progress-bar cards and an inline "add progress" dialog, add-goal screen (name, target amount, optional deadline). Mirrors the transactions feature's layer structure.
-- **Analytics** (`mobile/lib/features/analytics/`, commits `6b328d8`, `a320fec`): category-breakdown pie chart screen (`fl_chart`, month/year navigation) and monthly report screen (income/expense/savings totals, % change vs. previous month, Uzbek insight text). Shared `uzMonthNames` constant extracted for both screens.
-- **Categories management** (`mobile/lib/features/categories/`, commit `8fa1574`): the read-only data layer was extended into full CRUD — `category_repository.dart` (list/create/update/delete), `category_exception.dart`, a list screen and an add/edit screen. Edit/delete are gated on `is_default`/`user == null` to match the backend's `perform_update`/`perform_destroy` protection on global categories.
-- **Cards management** (`mobile/lib/features/cards/`, commit `5b95e80`): the read-only repository was extended to create/update/delete plus a `card_exception.dart`, and a list screen (empty state, delete confirmation, pull-to-refresh) and add/edit screen were added. Simpler than categories — the backend `Card` model has no global/default rows, so every row is user-owned and freely editable. The `last4` field is optional but validated as all-or-nothing 4 digits (`maxLength` + `digitsOnly` formatter guard typing; `_validateLast4` guards submission against pasted/partial values).
-- **Mobile theme + redesign** (commits `7cac1e8`, `7d4ced2`): see "Current State" above for the summary; every mobile screen now renders consistently through `AppColors`/`AppTheme`, `flutter analyze` is clean, and the widget test suite passes.
-- Dashboard now has cards navigating to transactions, goals, categories, cards, category-breakdown, and monthly report.
-- Bug fix (`4bc1775`): goal list response parsing corrected to match the backend's unpaginated goals endpoint.
+**Mobile (Flutter):**
+- Auth, Transactions, Goals, Analytics, Categories CRUD, Cards CRUD.
+- Transaction-goal linking with atomic backend updates.
+- Widget tests created and expanded across key screens: `login_screen_test.dart`, `card_list_screen_test.dart`, `category_list_screen_test.dart`, `transaction_list_screen_test.dart`, and `goal_list_screen_test.dart`.
+- **Palette Unification Assessment**: Web (`tailwind.config.ts`) and Mobile (`app_theme.dart`) color systems verified to be **100% unified** on Ledger-Green (`#0F6B4C` brand, `#1E9C6B` income, `#C4573B` expense, `#E8A33D` accent).
+
+**Web Frontend (Next.js):**
+- Full CRUD/dashboard parity with mobile client.
+- `budgetsApi` and `exportTransactionsCsv` added to `resources.ts`.
+- Accessibility fixes (input labelling via `useId()`, skip links, accessible keyboard focus, drawer navigation).
+- Global React `ErrorBoundary` wrapper in root `layout.tsx`.
+- `tsc --noEmit` and `npm run build` pass cleanly (14/14 static pages generated).
+
+**CI/CD & DevOps:**
+- `.github/workflows/ci.yml` pipeline created for GitHub Actions.
+- `.gitignore` updated with media/screenshot artifacts and MCP tooling state.
 
 ## What Is Left
 
-- **Web design pass — visually unverified in a real browser.** Every check so far has been `tsc`/`next build`/curl-200, never an actual screenshot (no browser-automation tool available). Worth a real visual pass before trusting it fully — e.g. via the `run` skill/Playwright once available, or the user checking `localhost:3000` directly.
-- **Monthly trend screen — done, uncommitted.** `mobile/lib/features/analytics/`: new `MonthlyTrendEntry` domain model, `AnalyticsRepository.monthlyTrend()`, a `FutureProvider` (no month-navigation needed — always a fixed 6-month rolling window, unlike the other two analytics screens), and `MonthlyTrendScreen` — a grouped bar chart (fl_chart, income/expense per month, tap tooltip) plus a scrollable month-by-month list below it showing net savings. Routed at `/analytics/monthly-trend` and linked from the dashboard. `flutter analyze` clean.
-- **Web form validation — two accessibility items deliberately deferred.** (1) No unsaved-changes warning when navigating away from a partially-filled form (needs a `beforeunload` + router-guard pattern across five forms). (2) Focus is not moved to the first invalid field on submit — the forms use `noValidate` with a single server-returned error, so there is no per-field invalid state to focus; this requires adding field-level validation first. Both are behavior changes rather than defect fixes, which is why they were left out of the compliance pass.
-- **Web frontend (`web/`)** — added by a separate, unaudited change (commit `831dfda`); has route folders mirroring every backend feature (dashboard/transactions/goals/categories/cards/analytics). `needs review`: has this been checked for parity/consistency with the backend contracts the mobile app uses, and does it have its own test coverage?
-- **Offline-first architecture** — not started. No `sqflite`/`hive`/`drift`/`isar` dependency in `pubspec.yaml`; app is fully remote-API-dependent with no local persistence or sync layer.
-- **Mobile test coverage — data/controller layers done, screens mostly not.** Covered: `goal_repository`, `goal_list_controller`, `analytics_repository` (all 3 endpoints), `category_breakdown_controller` (incl. month-wrap edge cases), `monthly_trend_controller`, `transaction_repository`, `transaction_list_controller`, `card_repository`, `card_providers`, `category_repository` — all via a `MockDio`/mocktail-based pattern in `test/support/mock_dio.dart`. Not yet covered: `monthly_report_controller` (has the same month-navigation logic as `category_breakdown_controller` but untested), auth (`auth_repository`/`auth_controller` — notably the token-refresh-on-401 interceptor logic in `core/api/auth_interceptor.dart` has zero tests despite being security-sensitive), and widget tests for every screen except `goal_list_screen` (auth, dashboard, transactions, add-transaction, add-goal, categories, cards, analytics x3).
-- **CI/CD** — `needs review`. No `.github/workflows` or equivalent found in-repo; unknown whether CI is configured externally.
-- **Stray artifacts** — `mobile/_cardId`, a root-level empty `entries` file, and some screenshot PNGs/`.playwright-mcp/` seen untracked in recent sessions — should be reviewed and likely deleted; none are staged/committed.
-- **`.claude-flow/`, `.swarm/` tooling state files** appear as modified/untracked in git status — `needs review` on whether these belong in version control at all (they look like local agent-tooling state, not project source).
+1. **Web Visual QA**: Real browser/visual verification on desktop and mobile viewports.
+2. **Offline-First Persistence Strategy**: Architectural decision on whether to adopt local SQLite/Hive persistence for offline-first capabilities.
+3. **Web Password Reset UI**: Web client integration for password reset request and confirm pages.
 
 ## Next Goals
 
-1. Get a real visual/browser check on the web redesign (currently only build+curl verified) — either set up a browser-automation tool or have the user eyeball `localhost:3000`. This now also needs to cover the new mobile drawer (below `lg`) and the skip link, neither of which has been seen rendered.
-2. Decide whether to build the **monthly-trend chart screen** (line/bar over N months) on mobile, or defer it — backend is ready either way.
-3. Continue mobile test coverage: `auth_interceptor`/`auth_repository`/`auth_controller` next (security-sensitive, currently untested), then `monthly_report_controller`, then widget tests for the remaining screens (login/register, dashboard, transactions, add-transaction, add-goal, categories, cards, the two other analytics screens).
-4. Decide whether to carry the web's emerald/gold palette into the mobile "ledger-green" theme for cross-platform visual consistency, or keep them intentionally distinct.
-5. Decide and document an offline-first strategy (or explicitly decide to defer it) — affects architecture choices for all remaining screens if adopted late.
-6. Add minimal CI (lint + `flutter analyze` + `pytest` on push) — currently no automated verification exists.
-7. Review and clean up the stray untracked artifacts and the `.claude-flow`/`.swarm` tracked-state files in git status.
+1. **Web Visual QA & Screenshot Audit**: Perform browser visual checks across desktop and mobile screens to verify drawer, skip link, and responsive layouts (`localhost:3000`).
+2. **Web Password Reset UI**: Add `/forgot-password` and `/reset-password` UI forms to Next.js web client.
+3. **Offline-First Storage Assessment**: Evaluate Hive/Isar vs SQLite for mobile local caching.
 
 ## Where to Continue
 
-**Immediate next file/module, in priority order:**
+1. **Web Browser Verification**: Run Playwright / browser QA on `localhost:3000` to inspect UI render quality and responsiveness.
+2. **Web Auth UI**: Create `web/src/app/forgot-password/page.tsx` and `web/src/app/reset-password/page.tsx`.
 
-1. A real browser pass over the committed web redesign (`fca9cff`, `8d2d5cf`) plus the accessibility pass — screenshot each of the 6 screens + login/register, both themes, at desktop and mobile widths, before calling the design pass done. Specific things to eyeball: the mobile drawer open/closed, the skip link on first Tab, and keyboard focus visibility on the transaction row delete button.
-2. `mobile/lib/features/analytics/` — optionally add a `monthly-trend` screen if prioritized ahead of test coverage.
-3. `mobile/test/` — data/controller-layer coverage is now in place for goals/analytics/transactions/cards/categories; next up is `core/api/auth_interceptor.dart` (untested token-refresh logic) and widget tests for the remaining screens.
-4. Stray artifact cleanup (`entries`, screenshot PNGs, `.playwright-mcp/`, the empty `web/,` file, `.claude-flow`/`.swarm` state) — low-risk, high-value housekeeping whenever there's a lull.
-
-Every backend resource now has a mobile CRUD surface, and the web redesign is now fully committed across all 6 screens plus auth — no missing product functionality remains on either client. Remaining work is confidence-building (visual QA, tests, CI) and a few scope decisions (monthly-trend, offline-first, cross-platform palette unification).

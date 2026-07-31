@@ -36,3 +36,30 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.type} {self.amount} ({self.date})"
+
+
+class RecurringTransaction(models.Model):
+    FREQUENCY_CHOICES = [
+        ("weekly", "Haftalik"),
+        ("monthly", "Oylik"),
+        ("yearly", "Yillik"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="recurring_transactions")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="recurring_transactions")
+    card = models.ForeignKey(
+        Card, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_transactions"
+    )
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    type = models.CharField(max_length=10, choices=Transaction.TYPE_CHOICES)
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="monthly")
+    next_date = models.DateField()
+    note = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Recurring {self.type} {self.amount} ({self.frequency})"
+

@@ -1,3 +1,4 @@
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -10,7 +11,7 @@ env = environ.Env(
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="dev-insecure-secret-key")
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="dev-insecure-secret-key-must-be-at-least-32-bytes-long")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 # 10.0.2.2 — Android emulatordagi Flutter app host mashinaga shu manzil orqali chiqadi
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "10.0.2.2"])
@@ -24,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "drf_spectacular",
@@ -33,18 +35,24 @@ INSTALLED_APPS = [
     "apps.transactions",
     "apps.goals",
     "apps.analytics",
+    "apps.budgets",
 ]
 
+
+
 MIDDLEWARE = [
+    "config.middleware.RequestIDMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.middleware.IdempotencyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 
 ROOT_URLCONF = "config.urls"
 
@@ -70,11 +78,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 # (against the Postgres port docker-compose publishes as 5432:5432).
 # docker-compose.yml sets DB_HOST=db explicitly for the backend container,
 # since "db" is only resolvable inside the compose network.
+IS_TESTING = "test" in sys.argv or "pytest" in sys.modules or any("pytest" in arg for arg in sys.argv)
+DEFAULT_DB_ENGINE = "django.db.backends.sqlite3" if IS_TESTING else "django.db.backends.postgresql"
+
 DATABASES = {
     "default": {
         # DB_ENGINE faqat lokal test uchun (Postgres yo'q muhitda sqlite3'ga o'tkazish);
         # docker-compose va production default Postgres'da qoladi.
-        "ENGINE": env.str("DB_ENGINE", default="django.db.backends.postgresql"),
+        "ENGINE": env.str("DB_ENGINE", default=DEFAULT_DB_ENGINE),
         "NAME": env.str("POSTGRES_DB", default="finance_db"),
         "USER": env.str("POSTGRES_USER", default="finance_user"),
         "PASSWORD": env.str("POSTGRES_PASSWORD", default="finance_pass"),
@@ -107,6 +118,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min",
+        "user": "300/min",
+        "auth": "5/min",
+    },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
     ),
@@ -116,8 +136,10 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Finance App API",

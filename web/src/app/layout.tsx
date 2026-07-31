@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./globals.css";
+
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -54,8 +56,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>{children}</AuthProvider>
+        </ErrorBoundary>
       </body>
+
     </html>
   );
 }

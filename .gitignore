@@ -11,10 +11,15 @@ venv/
 # Tooling / IDE
 .claude-flow/
 .swarm/
+.playwright-mcp/
 .gradle/
 .idea/
 .junie/
 
+# Screenshots & Local media artifacts
+*.png
+
 # Local databases
 ruvector.db
 *.db
+

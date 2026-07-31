@@ -6,12 +6,15 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
 
 from apps.goals.models import Goal
 from apps.transactions.filters import TransactionFilter
-from apps.transactions.models import Transaction
+from apps.transactions.models import RecurringTransaction, Transaction
 from apps.transactions.pagination import TransactionPagination
-from apps.transactions.serializers import TransactionSerializer
+from apps.transactions.serializers import RecurringTransactionSerializer, TransactionSerializer
+
 
 
 def _adjust_goal_amount(user, goal_id, delta):
@@ -78,3 +81,58 @@ class TransactionViewSet(viewsets.ModelViewSet):
             if instance.goal_id:
                 _adjust_goal_amount(self.request.user, instance.goal_id, -instance.amount)
             instance.delete()
+
+
+class TransactionExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import csv
+        from datetime import date
+        from django.http import HttpResponse
+
+        queryset = Transaction.objects.filter(user=request.user).select_related("category", "card")
+
+        # Apply basic filters
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
+        tx_type = request.query_params.get("type")
+        category_id = request.query_params.get("category")
+
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        if tx_type:
+            queryset = queryset.filter(type=tx_type)
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        queryset = queryset.order_by("-date")
+
+        filename = f"transactions_{date.today().strftime('%Y%m%d')}.csv"
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        writer.writerow(["Sana", "Turi", "Kategoriya", "Summa (UZS)", "Karta", "Izoh"])
+
+        for tx in queryset:
+            type_display = "Daromad" if tx.type == "income" else "Xarajat"
+            card_name = tx.card.name if tx.card else "-"
+            writer.writerow([tx.date, type_display, tx.category.name, tx.amount, card_name, tx.note])
+
+        return response
+
+
+class RecurringTransactionViewSet(viewsets.ModelViewSet):
+    serializer_class = RecurringTransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return RecurringTransaction.objects.filter(user=self.request.user).select_related("category", "card")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+

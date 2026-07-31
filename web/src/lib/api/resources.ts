@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
 import type {
+  Budget,
   Card,
   Category,
   CategoryBreakdownRow,
@@ -9,6 +10,7 @@ import type {
   Paginated,
   Transaction,
 } from "../types";
+
 
 // ---- Categories ----
 export const categoriesApi = {
@@ -82,7 +84,33 @@ export const analyticsApi = {
       .then((r) => r.data),
 };
 
+// ---- Budgets ----
+export const budgetsApi = {
+  list: (params?: { month?: number; year?: number }) =>
+    apiClient.get<Budget[] | Paginated<Budget>>("/budgets/", { params }).then((r) => r.data),
+  create: (payload: { category_id: number; amount_limit: string; month: number; year: number }) =>
+    apiClient.post<Budget>("/budgets/", payload).then((r) => r.data),
+  remove: (id: number) => apiClient.delete(`/budgets/${id}/`),
+};
+
 /** DRF pagination can be toggled off per view; normalize either shape to an array. */
 export function unwrapList<T>(data: T[] | Paginated<T>): T[] {
   return Array.isArray(data) ? data : data.results;
 }
+
+export async function exportTransactionsCsv(filters: TransactionFilters = {}) {
+  const response = await apiClient.get("/transactions/export/", {
+    params: filters,
+    responseType: "blob",
+  });
+  const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
