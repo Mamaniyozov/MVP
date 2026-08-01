@@ -20,3 +20,28 @@ export async function register(email: string, password: string, password2: strin
   });
   return data;
 }
+
+export interface PasswordResetResponse {
+  detail: string;
+  uid?: string;
+  token?: string;
+}
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetResponse> {
+  const { data } = await axios.post<PasswordResetResponse>(`${API_BASE_URL}/auth/password-reset/`, { email });
+  return data;
+}
+
+export async function confirmPasswordReset(
+  uid: string,
+  token: string,
+  new_password: string
+): Promise<{ detail: string }> {
+  const { data } = await axios.post<{ detail: string }>(`${API_BASE_URL}/auth/password-reset/confirm/`, {
+    uid,
+    token,
+    new_password,
+  });
+  return data;
+}
+

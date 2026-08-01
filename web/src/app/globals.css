@@ -123,12 +123,24 @@
   }
 
   .card {
-    @apply rounded-card border border-line bg-surface shadow-card transition-shadow duration-300 dark:border-line-dark dark:bg-surface-dark;
+    @apply rounded-card border border-line/80 bg-surface/90 backdrop-blur-md shadow-card transition-all duration-300 dark:border-line-dark/80 dark:bg-surface-dark/90;
   }
 
-  /* Interactive card variant: lifts on hover for clickable surfaces. */
+  /* Interactive card variant: lifts and glows subtly on hover for clickable surfaces. */
   .card-lift {
-    @apply hover:-translate-y-0.5 hover:shadow-card-hover transition-[transform,box-shadow] duration-300;
+    @apply hover:-translate-y-1 hover:shadow-card-hover hover:border-brand/30 dark:hover:border-income/30 transition-[transform,box-shadow,border-color] duration-300;
+  }
+
+  .glow-brand {
+    box-shadow: 0 0 20px -3px rgba(15, 107, 76, 0.18);
+  }
+
+  .glow-income {
+    box-shadow: 0 0 20px -3px rgba(30, 156, 107, 0.2);
+  }
+
+  .glow-expense {
+    box-shadow: 0 0 20px -3px rgba(196, 87, 59, 0.18);
   }
 
   .input {

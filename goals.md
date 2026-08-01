@@ -47,7 +47,11 @@ _Audit date: 2026-07-25, last updated 2026-07-31 (category budgets app, CSV data
 - `budgetsApi` and `exportTransactionsCsv` added to `resources.ts`.
 - Accessibility fixes (input labelling via `useId()`, skip links, accessible keyboard focus, drawer navigation).
 - Global React `ErrorBoundary` wrapper in root `layout.tsx`.
-- `tsc --noEmit` and `npm run build` pass cleanly (14/14 static pages generated).
+- `/forgot-password` and `/reset-password` UI forms created with full backend API integration (`requestPasswordReset` & `confirmPasswordReset`).
+- `tsc --noEmit` and `npm run build` pass cleanly (16/16 static & dynamic pages generated).
+
+**Architecture & Documentation:**
+- Created [docs/offline_storage_assessment.md](file:///d:/MVP/docs/offline_storage_assessment.md): Comprehensive evaluation recommending Hive (pure Dart Key-Value) & optimistic sync queue for Flutter mobile offline caching.
 
 **CI/CD & DevOps:**
 - `.github/workflows/ci.yml` pipeline created for GitHub Actions.
@@ -56,17 +60,16 @@ _Audit date: 2026-07-25, last updated 2026-07-31 (category budgets app, CSV data
 ## What Is Left
 
 1. **Web Visual QA**: Real browser/visual verification on desktop and mobile viewports.
-2. **Offline-First Persistence Strategy**: Architectural decision on whether to adopt local SQLite/Hive persistence for offline-first capabilities.
-3. **Web Password Reset UI**: Web client integration for password reset request and confirm pages.
+2. **Flutter Hive Storage Implementation**: Implement Hive adapters & sync queue for mobile offline persistence.
 
 ## Next Goals
 
 1. **Web Visual QA & Screenshot Audit**: Perform browser visual checks across desktop and mobile screens to verify drawer, skip link, and responsive layouts (`localhost:3000`).
-2. **Web Password Reset UI**: Add `/forgot-password` and `/reset-password` UI forms to Next.js web client.
-3. **Offline-First Storage Assessment**: Evaluate Hive/Isar vs SQLite for mobile local caching.
+2. **Flutter Hive Storage Setup**: Add `hive` and `hive_flutter` packages and create `HiveService` for offline caching in `mobile/lib/core/storage/`.
 
 ## Where to Continue
 
 1. **Web Browser Verification**: Run Playwright / browser QA on `localhost:3000` to inspect UI render quality and responsiveness.
-2. **Web Auth UI**: Create `web/src/app/forgot-password/page.tsx` and `web/src/app/reset-password/page.tsx`.
+2. **Mobile Offline Storage**: Create `mobile/lib/core/storage/hive_service.dart`.
+
 

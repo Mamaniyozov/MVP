@@ -47,15 +47,23 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Field
-          label="Parol"
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div>
+          <Field
+            label="Parol"
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <div className="mt-1.5 text-right">
+            <Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline dark:text-income">
+              Parolni unutdingizmi?
+            </Link>
+          </div>
+        </div>
+
 
         {error ? (
           <p role="alert" className="rounded-lg bg-expense/10 px-3.5 py-2.5 text-sm text-expense">
