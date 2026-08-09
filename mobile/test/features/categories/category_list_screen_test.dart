@@ -28,8 +28,8 @@ void main() {
 
   testWidgets('renders categories list split by expense and income', (tester) async {
     final categories = [
-      const Category(id: 1, name: 'Oziq-ovqat', type: CategoryType.expense, isDefault: true),
-      const Category(id: 2, name: 'Maosh', type: CategoryType.income, isDefault: false),
+      const Category(id: 1, name: 'Oziq-ovqat', type: CategoryType.expense, icon: '', isDefault: true),
+      const Category(id: 2, name: 'Maosh', type: CategoryType.income, icon: '', isDefault: false),
     ];
     when(() => repository.list()).thenAnswer((_) async => categories);
 

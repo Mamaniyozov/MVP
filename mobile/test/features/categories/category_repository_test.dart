@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/categories/data/category_exception.dart';
 import 'package:mobile/features/categories/data/category_repository.dart';
 import 'package:mobile/features/categories/domain/category.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../support/mock_dio.dart';
@@ -13,9 +14,12 @@ void main() {
 
   const path = '/api/v1/categories/';
 
+  late InMemoryOfflineCache cache;
+
   setUp(() {
     dio = MockDio();
-    repository = CategoryRepository(dio);
+    cache = InMemoryOfflineCache();
+    repository = CategoryRepository(dio, cache);
   });
 
   group('list', () {
@@ -127,6 +131,45 @@ void main() {
           isA<CategoryException>()
               .having((e) => e.message, 'message', "Kategoriyani o'chirib bo'lmadi"),
         ),
+      );
+    });
+  });
+
+  group('offline behaviour', () {
+    Response<List<dynamic>> categoriesResponse() => Response(
+          requestOptions: RequestOptions(path: path),
+          data: [
+            {'id': 1, 'name': 'Transport', 'type': 'expense', 'icon': '', 'is_default': true},
+          ],
+        );
+
+    test('serves cached categories when the server is unreachable', () async {
+      when(() => dio.get<List<dynamic>>(path, queryParameters: null))
+          .thenAnswer((_) async => categoriesResponse());
+      await repository.list();
+
+      when(() => dio.get<List<dynamic>>(path, queryParameters: null))
+          .thenThrow(dioConnectionError(path: path));
+
+      final categories = await repository.list();
+
+      expect(categories, hasLength(1));
+      expect(categories.single.name, 'Transport');
+    });
+
+    test('caches each type filter separately', () async {
+      when(() => dio.get<List<dynamic>>(path, queryParameters: null))
+          .thenAnswer((_) async => categoriesResponse());
+      await repository.list();
+
+      when(
+        () => dio.get<List<dynamic>>(path, queryParameters: {'type': 'income'}),
+      ).thenThrow(dioConnectionError(path: path));
+
+      // The unfiltered cache must not answer an income-filtered request.
+      await expectLater(
+        repository.list(type: CategoryType.income),
+        throwsA(isA<DioException>()),
       );
     });
   });

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/transactions/data/transaction_exception.dart';
 import 'package:mobile/features/transactions/data/transaction_repository.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../support/mock_dio.dart';
@@ -13,9 +14,12 @@ void main() {
 
   const path = '/api/v1/transactions/';
 
+  late InMemoryOfflineCache cache;
+
   setUp(() {
     dio = MockDio();
-    repository = TransactionRepository(dio);
+    cache = InMemoryOfflineCache();
+    repository = TransactionRepository(dio, cache);
   });
 
   group('list', () {
@@ -187,6 +191,88 @@ void main() {
               .having((e) => e.message, 'message', "Tranzaksiyani saqlab bo'lmadi"),
         ),
       );
+    });
+  });
+
+  group('offline behaviour', () {
+    Response<Map<String, dynamic>> pageResponse() => Response(
+          requestOptions: RequestOptions(path: path),
+          data: {
+            'next': null,
+            'results': [
+              {
+                'id': 1,
+                'amount': '50000.00',
+                'type': 'expense',
+                'category': 1,
+                'card': null,
+                'goal': null,
+                'date': '2026-07-31',
+                'note': 'Tushlik',
+              },
+            ],
+          },
+        );
+
+    test('serves the cached page when the server is unreachable', () async {
+      when(
+        () => dio.get<Map<String, dynamic>>(path, queryParameters: {'page': 1}),
+      ).thenAnswer((_) async => pageResponse());
+      await repository.list();
+
+      when(
+        () => dio.get<Map<String, dynamic>>(path, queryParameters: {'page': 1}),
+      ).thenThrow(dioConnectionError(path: path));
+
+      final page = await repository.list();
+
+      expect(page.items, hasLength(1));
+      expect(page.items.single.note, 'Tushlik');
+    });
+
+    test('does not serve the cache when the server answered with an error', () async {
+      when(
+        () => dio.get<Map<String, dynamic>>(path, queryParameters: {'page': 1}),
+      ).thenAnswer((_) async => pageResponse());
+      await repository.list();
+
+      when(
+        () => dio.get<Map<String, dynamic>>(path, queryParameters: {'page': 1}),
+      ).thenThrow(dioErrorWithResponse(path: path, statusCode: 500, data: {}));
+
+      await expectLater(repository.list(), throwsA(isA<TransactionException>()));
+    });
+
+    test('rethrows when offline with nothing cached yet', () async {
+      when(
+        () => dio.get<Map<String, dynamic>>(path, queryParameters: {'page': 1}),
+      ).thenThrow(dioConnectionError(path: path));
+
+      await expectLater(repository.list(), throwsA(isA<TransactionException>()));
+    });
+
+    test('queues the create for later sync when offline', () async {
+      when(
+        () => dio.post<Map<String, dynamic>>(path, data: any(named: 'data')),
+      ).thenThrow(dioConnectionError(path: path));
+
+      await expectLater(
+        repository.create(
+          categoryId: 5,
+          cardId: null,
+          goalId: null,
+          amount: 100,
+          type: CategoryType.expense,
+          date: DateTime(2026, 1, 9),
+          note: 'Offline',
+        ),
+        throwsA(isA<TransactionException>()),
+      );
+
+      final pending = cache.getPendingMutations();
+      expect(pending, hasLength(1));
+      expect(pending.single['path'], path);
+      expect((pending.single['body'] as Map)['note'], 'Offline');
     });
   });
 }

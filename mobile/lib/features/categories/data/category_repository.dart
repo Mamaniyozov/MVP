@@ -1,24 +1,47 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/api/api_client.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mobile/features/categories/data/category_exception.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 
 class CategoryRepository {
-  CategoryRepository(this._dio);
+  CategoryRepository(this._dio, this._cache);
 
   final Dio _dio;
+  final OfflineCache _cache;
 
   /// Categories are unpaginated on the backend — a plain JSON array.
   Future<List<Category>> list({CategoryType? type}) async {
-    final response = await _dio.get<List<dynamic>>(
-      '/api/v1/categories/',
-      queryParameters: type == null ? null : {'type': categoryTypeToJson(type)},
-    );
-    return response.data!
-        .cast<Map<String, dynamic>>()
-        .map(Category.fromJson)
-        .toList();
+    final cacheKey = type == null ? 'all' : categoryTypeToJson(type);
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        '/api/v1/categories/',
+        queryParameters: type == null ? null : {'type': categoryTypeToJson(type)},
+      );
+      final data = response.data!;
+      await _cache.cacheData(OfflineCache.categoriesBoxName, cacheKey, data);
+      return data.cast<Map<String, dynamic>>().map(Category.fromJson).toList();
+    } on DioException catch (error) {
+      // Serve the cache only when the server was unreachable at all.
+      if (error.response == null) {
+        final cached = _cachedList(cacheKey);
+        if (cached != null) return cached;
+      }
+      rethrow;
+    }
+  }
+
+  List<Category>? _cachedList(String cacheKey) {
+    final cached = _cache.getCachedData(OfflineCache.categoriesBoxName, cacheKey);
+    if (cached is! List) return null;
+    try {
+      return cached
+          .map((item) => Category.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> create({required String name, required CategoryType type, String icon = ''}) async {
@@ -81,5 +104,8 @@ class CategoryRepository {
 }
 
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
-  return CategoryRepository(ref.watch(apiClientProvider));
+  return CategoryRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(offlineCacheProvider),
+  );
 });

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/api/auth_event_bus.dart';
 import 'package:mobile/core/api/token_storage.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mobile/features/auth/data/auth_exception.dart';
 import 'package:mobile/features/auth/data/auth_repository.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_state.dart';
@@ -12,8 +13,10 @@ class AuthController extends StateNotifier<AuthState> {
     required AuthRepository repository,
     required TokenStorage tokenStorage,
     required AuthEventBus eventBus,
+    required OfflineCache offlineCache,
   })  : _repository = repository,
         _tokenStorage = tokenStorage,
+        _offlineCache = offlineCache,
         super(const AuthState()) {
     _forceLogoutSubscription = eventBus.onForceLogout.listen((_) {
       _handleForceLogout();
@@ -23,6 +26,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   final AuthRepository _repository;
   final TokenStorage _tokenStorage;
+  final OfflineCache _offlineCache;
   late final StreamSubscription<void> _forceLogoutSubscription;
 
   Future<void> _restoreSession() async {
@@ -33,7 +37,14 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> _handleForceLogout() async {
+    await _clearSession();
+  }
+
+  /// Drops tokens *and* every cached payload — otherwise the next account to
+  /// sign in on this device would be served the previous user's data offline.
+  Future<void> _clearSession() async {
     await _tokenStorage.clear();
+    await _offlineCache.clearAllCaches();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
@@ -81,8 +92,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _tokenStorage.clear();
-    state = const AuthState(status: AuthStatus.unauthenticated);
+    await _clearSession();
   }
 
   @override
@@ -97,5 +107,6 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
     repository: ref.watch(authRepositoryProvider),
     tokenStorage: ref.watch(tokenStorageProvider),
     eventBus: ref.watch(authEventBusProvider),
+    offlineCache: ref.watch(offlineCacheProvider),
   );
 });

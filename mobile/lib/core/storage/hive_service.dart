@@ -1,16 +1,26 @@
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-/// Central storage service managing Hive boxes for offline-first caching
-/// and optimistic mutation queueing in the Hisob mobile client.
-class HiveService {
-  static const transactionsBoxName = 'transactions_box';
-  static const categoriesBoxName = 'categories_box';
-  static const cardsBoxName = 'cards_box';
-  static const budgetsBoxName = 'budgets_box';
-  static const goalsBoxName = 'goals_box';
-  static const offlineMutationsBoxName = 'offline_mutations_box';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
+
+/// Hive-backed [OfflineCache]: persists API payloads on disk for offline-first
+/// reads and queues optimistic mutations in the Hisob mobile client.
+class HiveService implements OfflineCache {
+  static const transactionsBoxName = OfflineCache.transactionsBoxName;
+  static const categoriesBoxName = OfflineCache.categoriesBoxName;
+  static const cardsBoxName = OfflineCache.cardsBoxName;
+  static const budgetsBoxName = OfflineCache.budgetsBoxName;
+  static const goalsBoxName = OfflineCache.goalsBoxName;
+  static const offlineMutationsBoxName = OfflineCache.offlineMutationsBoxName;
+
+  static const _boxNames = <String>[
+    OfflineCache.transactionsBoxName,
+    OfflineCache.categoriesBoxName,
+    OfflineCache.cardsBoxName,
+    OfflineCache.budgetsBoxName,
+    OfflineCache.goalsBoxName,
+    OfflineCache.offlineMutationsBoxName,
+  ];
 
   bool _initialized = false;
 
@@ -18,31 +28,20 @@ class HiveService {
   Future<void> init() async {
     if (_initialized) return;
     await Hive.initFlutter();
-    
-    await Future.wait([
-      Hive.openBox(transactionsBoxName),
-      Hive.openBox(categoriesBoxName),
-      Hive.openBox(cardsBoxName),
-      Hive.openBox(budgetsBoxName),
-      Hive.openBox(goalsBoxName),
-      Hive.openBox(offlineMutationsBoxName),
-    ]);
-    
+    await Future.wait(_boxNames.map(Hive.openBox));
     _initialized = true;
   }
 
-  /// Caches a JSON-encodable payload under [key] in the specified [boxName].
+  @override
   Future<void> cacheData(String boxName, String key, dynamic value) async {
     final box = Hive.box(boxName);
-    final jsonString = jsonEncode(value);
-    await box.put(key, jsonString);
+    await box.put(key, jsonEncode(value));
   }
 
-  /// Retrieves cached data for [key] from [boxName], decoding JSON string payload.
+  @override
   dynamic getCachedData(String boxName, String key) {
-    final box = Hive.box(boxName);
-    final raw = box.get(key);
-    if (raw == null || raw is! String) return null;
+    final raw = Hive.box(boxName).get(key);
+    if (raw is! String) return null;
     try {
       return jsonDecode(raw);
     } catch (_) {
@@ -50,66 +49,52 @@ class HiveService {
     }
   }
 
-  /// Clears all entries in a specific cache box.
+  @override
   Future<void> clearBox(String boxName) async {
-    final box = Hive.box(boxName);
-    await box.clear();
+    await Hive.box(boxName).clear();
   }
 
-  /// Enqueues a pending offline mutation (e.g. POST/PUT request payload)
-  /// to be synced when internet connectivity is restored.
+  @override
   Future<void> enqueueOfflineMutation(Map<String, dynamic> mutation) async {
-    final box = Hive.box(offlineMutationsBoxName);
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
-    mutation['mutation_id'] = id;
-    mutation['created_at'] = DateTime.now().toIso8601String();
-    await box.put(id, jsonEncode(mutation));
+    final box = Hive.box(OfflineCache.offlineMutationsBoxName);
+    final id = MutationIdGenerator.next();
+    final entry = Map<String, dynamic>.from(mutation)
+      ..['mutation_id'] = id
+      ..['created_at'] = DateTime.now().toIso8601String();
+    await box.put(id, jsonEncode(entry));
   }
 
-  /// Retrieves all pending offline mutations sorted by creation timestamp.
+  @override
   List<Map<String, dynamic>> getPendingMutations() {
-    final box = Hive.box(offlineMutationsBoxName);
+    final box = Hive.box(OfflineCache.offlineMutationsBoxName);
     final results = <Map<String, dynamic>>[];
-    for (var key in box.keys) {
+    for (final key in box.keys) {
       final raw = box.get(key);
-      if (raw is String) {
-        try {
-          final decoded = jsonDecode(raw);
-          if (decoded is Map<String, dynamic>) {
-            results.add(decoded);
-          }
-        } catch (_) {}
+      if (raw is! String) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) results.add(decoded);
+      } catch (_) {
+        // Corrupt entry — skip rather than blocking the whole queue.
       }
     }
-    results.sort((a, b) => (a['created_at'] ?? '').compareTo(b['created_at'] ?? ''));
+    results.sort(
+      (a, b) => '${a['mutation_id']}'.compareTo('${b['mutation_id']}'),
+    );
     return results;
   }
 
-  /// Removes a synced mutation from the offline queue by its [id].
+  @override
   Future<void> removeOfflineMutation(String id) async {
-    final box = Hive.box(offlineMutationsBoxName);
-    await box.delete(id);
+    await Hive.box(OfflineCache.offlineMutationsBoxName).delete(id);
   }
 
-  /// Clears all pending mutations from the queue.
-  Future<void> clearOfflineQueue() async {
-    await clearBox(offlineMutationsBoxName);
-  }
+  @override
+  Future<void> clearOfflineQueue() async =>
+      clearBox(OfflineCache.offlineMutationsBoxName);
 
-  /// Clears all application caches (e.g. on logout).
+  @override
   Future<void> clearAllCaches() async {
-    await Future.wait([
-      clearBox(transactionsBoxName),
-      clearBox(categoriesBoxName),
-      clearBox(cardsBoxName),
-      clearBox(budgetsBoxName),
-      clearBox(goalsBoxName),
-      clearBox(offlineMutationsBoxName),
-    ]);
+    await Future.wait(_boxNames.map(clearBox));
   }
 }
-
-/// Riverpod provider delivering the single [HiveService] instance across the app.
-final hiveServiceProvider = Provider<HiveService>((ref) {
-  return HiveService();
-});

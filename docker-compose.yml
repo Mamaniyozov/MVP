@@ -33,6 +33,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: "5432"
+      # Telefon/LAN qurilmalari ulanishi uchun host mashinaning joriy Wi-Fi IP manzili.
+      # IP o'zgarsa (DHCP), buni yoki DJANGO_ALLOWED_HOSTS muhit o'zgaruvchisini yangilang.
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,10.0.2.2,10.34.16.169}
     depends_on:
       db:
         condition: service_healthy

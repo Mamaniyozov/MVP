@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,10 +18,20 @@ Widget _pumpGoalListScreen(AsyncValue<List<Goal>> goals) {
   );
 }
 
+/// Seeds the screen from a fixed [AsyncValue]. The value has to come out of
+/// `build()` — assigning `state` in the constructor is overwritten as soon as
+/// the notifier builds, which would then hit the real repository.
 class _FakeGoalListController extends GoalListController {
-  _FakeGoalListController(AsyncValue<List<Goal>> initial) {
-    state = initial;
-  }
+  _FakeGoalListController(this._initial);
+
+  final AsyncValue<List<Goal>> _initial;
+
+  @override
+  Future<List<Goal>> build() => _initial.when(
+        data: (goals) async => goals,
+        error: (error, stackTrace) => Future<List<Goal>>.error(error, stackTrace),
+        loading: () => Completer<List<Goal>>().future,
+      );
 }
 
 void main() {

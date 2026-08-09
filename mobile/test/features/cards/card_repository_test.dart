@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/cards/data/card_exception.dart';
 import 'package:mobile/features/cards/data/card_repository.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../support/mock_dio.dart';
@@ -10,9 +11,12 @@ void main() {
   late MockDio dio;
   late CardRepository repository;
 
+  late InMemoryOfflineCache cache;
+
   setUp(() {
     dio = MockDio();
-    repository = CardRepository(dio);
+    cache = InMemoryOfflineCache();
+    repository = CardRepository(dio, cache);
   });
 
   group('list', () {
@@ -122,6 +126,36 @@ void main() {
               .having((e) => e.message, 'message', "Kartani o'chirib bo'lmadi"),
         ),
       );
+    });
+  });
+
+  group('offline behaviour', () {
+    Response<List<dynamic>> cardsResponse() => Response(
+          requestOptions: RequestOptions(path: '/api/v1/cards/'),
+          data: [
+            {'id': 1, 'name': 'Humo', 'last4': '1234'},
+          ],
+        );
+
+    test('serves cached cards when the server is unreachable', () async {
+      when(() => dio.get<List<dynamic>>('/api/v1/cards/'))
+          .thenAnswer((_) async => cardsResponse());
+      await repository.list();
+
+      when(() => dio.get<List<dynamic>>('/api/v1/cards/'))
+          .thenThrow(dioConnectionError(path: '/api/v1/cards/'));
+
+      final cards = await repository.list();
+
+      expect(cards, hasLength(1));
+      expect(cards.single.name, 'Humo');
+    });
+
+    test('rethrows when offline with an empty cache', () async {
+      when(() => dio.get<List<dynamic>>('/api/v1/cards/'))
+          .thenThrow(dioConnectionError(path: '/api/v1/cards/'));
+
+      await expectLater(repository.list(), throwsA(isA<DioException>()));
     });
   });
 }

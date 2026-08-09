@@ -1,26 +1,47 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/api/api_client.dart';
+import 'package:mobile/core/storage/offline_cache.dart';
 import 'package:mobile/features/categories/domain/category.dart';
 import 'package:mobile/features/transactions/data/transaction_exception.dart';
 import 'package:mobile/features/transactions/domain/transaction_page.dart';
 
 class TransactionRepository {
-  TransactionRepository(this._dio);
+  TransactionRepository(this._dio, this._cache);
 
   final Dio _dio;
+  final OfflineCache _cache;
 
   Future<TransactionPage> list({int page = 1}) async {
+    final cacheKey = 'page_$page';
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/api/v1/transactions/',
         queryParameters: {'page': page},
       );
-      return TransactionPage.fromJson(response.data!);
+      final data = response.data!;
+      await _cache.cacheData(OfflineCache.transactionsBoxName, cacheKey, data);
+      return TransactionPage.fromJson(data);
     } on DioException catch (error) {
+      // Only a connectivity failure justifies serving stale data; an HTTP
+      // error means the server answered and the cache would be misleading.
+      if (error.response == null) {
+        final cached = _cachedPage(cacheKey);
+        if (cached != null) return cached;
+      }
       throw TransactionException(_networkErrorMessage(error));
     } catch (_) {
       throw const TransactionException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
+    }
+  }
+
+  TransactionPage? _cachedPage(String cacheKey) {
+    final cached = _cache.getCachedData(OfflineCache.transactionsBoxName, cacheKey);
+    if (cached is! Map) return null;
+    try {
+      return TransactionPage.fromJson(Map<String, dynamic>.from(cached));
+    } catch (_) {
+      return null;
     }
   }
 
@@ -33,20 +54,30 @@ class TransactionRepository {
     required DateTime date,
     required String note,
   }) async {
+    final payload = <String, dynamic>{
+      'category': categoryId,
+      if (cardId != null) 'card': cardId,
+      if (goalId != null) 'goal': goalId,
+      'amount': amount.toStringAsFixed(2),
+      'type': categoryTypeToJson(type),
+      'date': _formatDate(date),
+      'note': note,
+    };
     try {
-      await _dio.post<Map<String, dynamic>>(
-        '/api/v1/transactions/',
-        data: {
-          'category': categoryId,
-          if (cardId != null) 'card': cardId,
-          if (goalId != null) 'goal': goalId,
-          'amount': amount.toStringAsFixed(2),
-          'type': categoryTypeToJson(type),
-          'date': _formatDate(date),
-          'note': note,
-        },
-      );
+      await _dio.post<Map<String, dynamic>>('/api/v1/transactions/', data: payload);
     } on DioException catch (error) {
+      if (error.response == null) {
+        // Offline: keep the entry so it can be replayed once the device is
+        // back online, and tell the user it is pending rather than lost.
+        await _cache.enqueueOfflineMutation({
+          'method': 'POST',
+          'path': '/api/v1/transactions/',
+          'body': payload,
+        });
+        throw const TransactionException(
+          "Internet yo'q — tranzaksiya navbatga qo'shildi va aloqa tiklanganda yuboriladi",
+        );
+      }
       throw TransactionException(_createErrorMessage(error));
     } catch (_) {
       throw const TransactionException("Kutilmagan xatolik yuz berdi. Qaytadan urinib ko'ring");
@@ -86,5 +117,8 @@ class TransactionRepository {
 }
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
-  return TransactionRepository(ref.watch(apiClientProvider));
+  return TransactionRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(offlineCacheProvider),
+  );
 });

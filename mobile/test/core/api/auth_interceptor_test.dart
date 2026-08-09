@@ -10,6 +10,20 @@ import '../../support/mock_dio.dart';
 class MockTokenStorage extends Mock implements TokenStorage {}
 class MockAuthEventBus extends Mock implements AuthEventBus {}
 
+/// Records what the interceptor did instead of completing dio's internal
+/// future — a bare [ErrorInterceptorHandler] rejects that future on `next`,
+/// which surfaces as an unhandled async error inside the test zone.
+class _RecordingErrorHandler extends ErrorInterceptorHandler {
+  DioException? forwardedError;
+  Response<dynamic>? resolvedResponse;
+
+  @override
+  void next(DioException err) => forwardedError = err;
+
+  @override
+  void resolve(Response<dynamic> response) => resolvedResponse = response;
+}
+
 void main() {
   late MockTokenStorage tokenStorage;
   late MockDio refreshDio;
@@ -60,27 +74,28 @@ void main() {
         requestOptions: options,
         response: Response(requestOptions: options, statusCode: 400),
       );
-      final handler = ErrorInterceptorHandler();
+      final handler = _RecordingErrorHandler();
 
       await interceptor.onError(error, handler);
 
+      expect(handler.forwardedError, same(error));
       verifyNever(() => tokenStorage.refreshToken);
     });
 
     test('clears session and emits force-logout when refresh token is null', () async {
       when(() => tokenStorage.refreshToken).thenAnswer((_) async => null);
       when(() => tokenStorage.clear()).thenAnswer((_) async {});
-      when(() => eventBus.emitForceLogout()).returnsWith(null);
 
       final options = RequestOptions(path: '/api/v1/transactions/');
       final error = DioException(
         requestOptions: options,
         response: Response(requestOptions: options, statusCode: 401),
       );
-      final handler = ErrorInterceptorHandler();
+      final handler = _RecordingErrorHandler();
 
       await interceptor.onError(error, handler);
 
+      expect(handler.forwardedError, same(error));
       verify(() => tokenStorage.clear()).called(1);
       verify(() => eventBus.emitForceLogout()).called(1);
     });
@@ -103,7 +118,7 @@ void main() {
         requestOptions: options,
         response: Response(requestOptions: options, statusCode: 401),
       );
-      final handler = ErrorInterceptorHandler();
+      final handler = _RecordingErrorHandler();
 
       final retriedResponse = Response(
         requestOptions: options,
@@ -114,6 +129,7 @@ void main() {
 
       await interceptor.onError(error, handler);
 
+      expect(handler.resolvedResponse, same(retriedResponse));
       verify(() => tokenStorage.saveAccessToken('new_access_token')).called(1);
       verify(() => refreshDio.fetch<dynamic>(any())).called(1);
     });
