@@ -3,6 +3,8 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -10,6 +12,15 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, False),
 )
 environ.Env.read_env(BASE_DIR / ".env")
+
+SENTRY_DSN = env.str("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True
+    )
 
 SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="dev-insecure-secret-key-must-be-at-least-32-bytes-long")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
@@ -23,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_prometheus",
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -41,6 +53,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "config.middleware.RequestIDMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -49,8 +62,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "config.middleware.IdempotencyMiddleware",
+    "config.middleware.AuditLogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 

@@ -83,3 +83,29 @@ class IdempotencyMiddleware:
 
         return response
 
+
+class AuditLogMiddleware:
+    """Logs admin-level and sensitive data access for compliance."""
+
+    SENSITIVE_PATHS = ("/admin/", "/api/v1/transactions/export/")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.logger = __import__("logging").getLogger("apps.audit")
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        if any(request.path.startswith(p) for p in self.SENSITIVE_PATHS):
+            user = getattr(request, "user", None)
+            username = user.email if user and user.is_authenticated else "anonymous"
+            self.logger.info(
+                "AUDIT action=%s path=%s user=%s ip=%s status=%s",
+                request.method,
+                request.path,
+                username,
+                request.META.get("REMOTE_ADDR", "unknown"),
+                response.status_code,
+            )
+
+        return response

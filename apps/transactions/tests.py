@@ -1,4 +1,5 @@
 import pytest
+from decimal import Decimal
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
@@ -203,3 +204,72 @@ def test_create_recurring_transaction_success():
     assert response.data["is_active"] is True
 
 
+@pytest.mark.django_db
+def test_goal_amount_cannot_exceed_target():
+    from apps.goals.models import Goal
+    user = User.objects.create_user(username="g1@example.com", email="g1@example.com", password="Str0ngPass!1")
+    category = Category.objects.filter(user=user, type="expense").first()
+    goal = Goal.objects.create(user=user, name="Laptop", target_amount="1000.00", current_amount="0")
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # First transaction (valid)
+    response = client.post(
+        "/api/v1/transactions/",
+        {"category": category.id, "amount": "900.00", "type": "expense", "date": "2026-08-01", "goal": goal.id}
+    )
+    assert response.status_code == 201
+
+    # Second transaction (invalid, exceeds target)
+    response_invalid = client.post(
+        "/api/v1/transactions/",
+        {"category": category.id, "amount": "100.01", "type": "expense", "date": "2026-08-02", "goal": goal.id}
+    )
+    assert response_invalid.status_code == 400
+    assert "goal" in response_invalid.data
+
+    goal.refresh_from_db()
+    assert goal.current_amount == Decimal("900.00")
+
+
+@pytest.mark.django_db
+def test_transaction_minimum_decimal_precision():
+    user = User.objects.create_user(username="g2@example.com", email="g2@example.com", password="Str0ngPass!1")
+    category = Category.objects.filter(user=user, type="expense").first()
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # Too small amount (less than 0.01)
+    response = client.post(
+        "/api/v1/transactions/",
+        {"category": category.id, "amount": "0.00", "type": "expense", "date": "2026-08-01"}
+    )
+    assert response.status_code == 400
+    assert "amount" in response.data
+
+    # Valid minimum amount
+    response_valid = client.post(
+        "/api/v1/transactions/",
+        {"category": category.id, "amount": "0.01", "type": "expense", "date": "2026-08-01"}
+    )
+    assert response_valid.status_code == 201
+
+
+@pytest.mark.django_db
+def test_csv_injection_mitigation():
+    user = User.objects.create_user(username="csvinj@example.com", email="csvinj@example.com", password="Str0ngPass!1")
+    category = Category.objects.create(user=user, name="=cmd|' /C calc'!A0", type="expense")
+    Transaction.objects.create(
+        user=user, category=category, amount="100.00", type="expense", date="2026-08-10", note="+1-2-3"
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.get("/api/v1/transactions/export/")
+    assert response.status_code == 200
+    
+    content = response.content.decode("utf-8")
+    assert "'=cmd|' /C calc'!A0" in content
+    assert "'+1-2-3" in content

@@ -76,3 +76,23 @@ jobs:
         run: |
           flutter analyze
           flutter test
+
+  security-audit:
+    name: Security Audit (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install Security Tools
+        run: pip install bandit safety
+        
+      - name: Run Bandit (SAST)
+        run: bandit -r apps/ config/ -ll -ii
+        
+      - name: Run Safety (Dependency Check)
+        run: safety check -r requirements.txt || true

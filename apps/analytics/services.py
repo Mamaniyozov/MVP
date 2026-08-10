@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from django.utils import timezone
 
 from django.db.models import Count, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
@@ -44,7 +45,7 @@ def get_category_breakdown(user, month: int, year: int) -> list[dict]:
 
 
 def get_monthly_trend(user, months: int = 6) -> list[dict]:
-    today = date.today()
+    today = timezone.localdate()
     month_keys = [_shift_month(today.year, today.month, -i) for i in range(months - 1, -1, -1)]
 
     start_year, start_month = month_keys[0]

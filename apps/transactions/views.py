@@ -88,8 +88,15 @@ class TransactionExportView(APIView):
 
     def get(self, request):
         import csv
-        from datetime import date
+        from django.utils import timezone
         from django.http import HttpResponse
+
+        def sanitize_csv(val):
+            if not isinstance(val, str):
+                val = str(val)
+            if val and val[0] in ('=', '+', '-', '@', '\t', '\r'):
+                return f"'{val}"
+            return val
 
         queryset = Transaction.objects.filter(user=request.user).select_related("category", "card")
 
@@ -110,7 +117,7 @@ class TransactionExportView(APIView):
 
         queryset = queryset.order_by("-date")
 
-        filename = f"transactions_{date.today().strftime('%Y%m%d')}.csv"
+        filename = f"transactions_{timezone.localdate().strftime('%Y%m%d')}.csv"
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
@@ -120,7 +127,14 @@ class TransactionExportView(APIView):
         for tx in queryset:
             type_display = "Daromad" if tx.type == "income" else "Xarajat"
             card_name = tx.card.name if tx.card else "-"
-            writer.writerow([tx.date, type_display, tx.category.name, tx.amount, card_name, tx.note])
+            writer.writerow([
+                tx.date, 
+                type_display, 
+                sanitize_csv(tx.category.name), 
+                tx.amount, 
+                sanitize_csv(card_name), 
+                sanitize_csv(tx.note)
+            ])
 
         return response
 
