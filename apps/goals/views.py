@@ -47,4 +47,16 @@ class GoalViewSet(viewsets.ModelViewSet):
             goal.current_amount = new_amount
             goal.save(update_fields=["current_amount"])
 
+        # Notification yuborish (tranzaksiyadan tashqarida)
+        if goal.current_amount == goal.target_amount:
+            from apps.notifications.services import send_notification
+            send_notification(
+                user=self.request.user,
+                title="Maqsadga erishildi! 🎉",
+                message=f"Siz '{goal.name}' maqsadiga yetdingiz!",
+                notification_type="goal",
+                send_email=True,
+                send_push=True
+            )
+
         return Response(GoalSerializer(goal).data)

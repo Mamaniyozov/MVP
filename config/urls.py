@@ -8,13 +8,13 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", health_check, name="health-check"),
     path("api/v1/auth/", include("apps.users.urls")),
-
     path("api/v1/", include("apps.categories.urls")),
     path("api/v1/", include("apps.cards.urls")),
     path("api/v1/", include("apps.transactions.urls")),
     path("api/v1/", include("apps.goals.urls")),
     path("api/v1/", include("apps.analytics.urls")),
     path("api/v1/budgets/", include("apps.budgets.urls")),
+    path("api/v1/notifications/", include("apps.notifications.urls")),
 
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

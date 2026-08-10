@@ -27,6 +27,17 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 # 10.0.2.2 — Android emulatordagi Flutter app host mashinaga shu manzil orqali chiqadi
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "10.0.2.2"])
 
+LOCAL_APPS = [
+    "apps.users",
+    "apps.categories",
+    "apps.cards",
+    "apps.transactions",
+    "apps.goals",
+    "apps.analytics",
+    "apps.budgets",
+    "apps.notifications",
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -41,14 +52,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
-    "apps.users",
-    "apps.categories",
-    "apps.cards",
-    "apps.transactions",
-    "apps.goals",
-    "apps.analytics",
-    "apps.budgets",
-]
+] + LOCAL_APPS
 
 
 
