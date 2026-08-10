@@ -244,6 +244,103 @@ def test_health_check_endpoint(client):
     assert response.json()["database"] == "connected"
 
 
+# ── SMS OTP Authentication Tests ──
 
 
+@pytest.mark.django_db
+def test_phone_register_success():
+    user = User.objects.create_user(username="phone1@test.com", email="phone1@test.com", password="Str0ngPass!1")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.post("/api/v1/auth/phone/register/", {"phone_number": "+998901234567"})
+    assert response.status_code == 200
+    assert response.json()["phone_number"] == "+998901234567"
+    user.profile.refresh_from_db()
+    assert user.profile.phone_number == "+998901234567"
+
+
+@pytest.mark.django_db
+def test_phone_register_invalid_format():
+    user = User.objects.create_user(username="phone2@test.com", email="phone2@test.com", password="Str0ngPass!1")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.post("/api/v1/auth/phone/register/", {"phone_number": "12345"})
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_otp_request_success():
+    user = User.objects.create_user(username="otp1@test.com", email="otp1@test.com", password="Str0ngPass!1")
+    user.profile.phone_number = "+998911111111"
+    user.profile.save()
+
+    client = APIClient()
+    response = client.post("/api/v1/auth/otp/request/", {"phone_number": "+998911111111"})
+    assert response.status_code == 200
+    assert "otp" in response.json()
+    assert len(response.json()["otp"]) == 6
+
+
+@pytest.mark.django_db
+def test_otp_verify_success():
+    user = User.objects.create_user(username="otp2@test.com", email="otp2@test.com", password="Str0ngPass!1")
+    user.profile.phone_number = "+998922222222"
+    user.profile.save()
+
+    client = APIClient()
+    # Request OTP
+    otp_response = client.post("/api/v1/auth/otp/request/", {"phone_number": "+998922222222"})
+    otp_code = otp_response.json()["otp"]
+
+    # Verify OTP
+    verify_response = client.post(
+        "/api/v1/auth/otp/verify/", {"phone_number": "+998922222222", "otp": otp_code}
+    )
+    assert verify_response.status_code == 200
+    assert "access" in verify_response.json()
+    assert "refresh" in verify_response.json()
+
+
+@pytest.mark.django_db
+def test_otp_verify_wrong_code():
+    user = User.objects.create_user(username="otp3@test.com", email="otp3@test.com", password="Str0ngPass!1")
+    user.profile.phone_number = "+998933333333"
+    user.profile.save()
+
+    client = APIClient()
+    client.post("/api/v1/auth/otp/request/", {"phone_number": "+998933333333"})
+
+    response = client.post(
+        "/api/v1/auth/otp/verify/", {"phone_number": "+998933333333", "otp": "000000"}
+    )
+    assert response.status_code == 400
+    assert "noto'g'ri" in response.json()["detail"].lower() or "noto" in response.json()["detail"].lower()
+
+
+@pytest.mark.django_db
+def test_otp_verify_expired():
+    from django.core.cache import cache
+
+    user = User.objects.create_user(username="otp4@test.com", email="otp4@test.com", password="Str0ngPass!1")
+    user.profile.phone_number = "+998944444444"
+    user.profile.save()
+
+    client = APIClient()
+    otp_response = client.post("/api/v1/auth/otp/request/", {"phone_number": "+998944444444"})
+    otp_code = otp_response.json()["otp"]
+
+    # Simulate expiration by clearing cache
+    cache.clear()
+
+    response = client.post(
+        "/api/v1/auth/otp/verify/", {"phone_number": "+998944444444", "otp": otp_code}
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_otp_request_unregistered_phone():
+    client = APIClient()
+    response = client.post("/api/v1/auth/otp/request/", {"phone_number": "+998955555555"})
+    assert response.status_code == 400
 

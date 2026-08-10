@@ -118,3 +118,50 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return user
 
 
+class PhoneRegisterSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=13)
+
+    def validate_phone_number(self, value):
+        import re
+        if not re.match(r"^\+998\d{9}$", value):
+            raise serializers.ValidationError(
+                "Telefon raqami +998XXXXXXXXX formatida bo'lishi kerak."
+            )
+        from apps.users.models import UserProfile
+        if UserProfile.objects.filter(phone_number=value).exclude(
+            user=self.context["request"].user
+        ).exists():
+            raise serializers.ValidationError(
+                "Bu telefon raqami boshqa foydalanuvchiga tegishli."
+            )
+        return value
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        profile = user.profile
+        profile.phone_number = self.validated_data["phone_number"]
+        profile.full_clean()
+        profile.save()
+        return profile
+
+
+class OTPRequestSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=13)
+
+    def validate_phone_number(self, value):
+        import re
+        if not re.match(r"^\+998\d{9}$", value):
+            raise serializers.ValidationError(
+                "Telefon raqami +998XXXXXXXXX formatida bo'lishi kerak."
+            )
+        from apps.users.models import UserProfile
+        if not UserProfile.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError(
+                "Bu telefon raqami ro'yxatdan o'tmagan."
+            )
+        return value
+
+
+class OTPVerifySerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=13)
+    otp = serializers.CharField(max_length=6, min_length=6)
