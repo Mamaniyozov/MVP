@@ -27,12 +27,15 @@ class Transaction(models.Model):
         max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )
     type = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    date = models.DateField()
+    date = models.DateField(db_index=True)
     note = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [models.Index(fields=["user", "date"])]
+        indexes = [
+            models.Index(fields=["user", "date"], name="txn_user_date_idx"),
+            models.Index(fields=["user", "category", "date"], name="txn_user_cat_date_idx"),
+        ]
 
     def __str__(self):
         return f"{self.type} {self.amount} ({self.date})"
@@ -55,11 +58,17 @@ class RecurringTransaction(models.Model):
     )
     type = models.CharField(max_length=10, choices=Transaction.TYPE_CHOICES)
     frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="monthly")
-    next_date = models.DateField()
+    next_date = models.DateField(db_index=True)
     note = models.CharField(max_length=255, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "is_active", "next_date"], name="rec_txn_user_act_next_idx"),
+        ]
 
     def __str__(self):
         return f"Recurring {self.type} {self.amount} ({self.frequency})"
+
 

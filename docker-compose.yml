@@ -23,9 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: finance_backend
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 60
     ports:
       - "8000:8000"
     env_file:
@@ -33,9 +31,7 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: "5432"
-      # Telefon/LAN qurilmalari ulanishi uchun host mashinaning joriy Wi-Fi IP manzili.
-      # IP o'zgarsa (DHCP), buni yoki DJANGO_ALLOWED_HOSTS muhit o'zgaruvchisini yangilang.
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,10.0.2.2,10.34.16.169}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,10.0.2.2}
     depends_on:
       db:
         condition: service_healthy
@@ -46,16 +42,14 @@ services:
       dockerfile: Dockerfile
     container_name: finance_web
     restart: unless-stopped
-    volumes:
-      - ./web:/app
-      - /app/node_modules
-      - /app/.next
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${WEB_API_BASE_URL:-http://localhost:8000/api/v1}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+

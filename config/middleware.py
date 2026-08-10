@@ -1,7 +1,9 @@
+import hashlib
 import json
 import uuid
 from django.core.cache import cache
 from django.http import HttpResponse
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class RequestIDMiddleware:
@@ -19,6 +21,28 @@ class RequestIDMiddleware:
 class IdempotencyMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.jwt_authenticator = JWTAuthentication()
+
+    def _get_user_identity(self, request):
+        # 1. Check if Django session/middleware already authenticated the user
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            return f"user_{request.user.id}"
+
+        # 2. Check if JWT Authorization header is present
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
+        if auth_header and isinstance(auth_header, str) and auth_header.startswith("Bearer "):
+            try:
+                authenticated = self.jwt_authenticator.authenticate(request)
+                if authenticated is not None:
+                    user, _ = authenticated
+                    if user and user.is_authenticated:
+                        request.user = user
+                        return f"user_{user.id}"
+            except Exception:
+                # Invalid or expired token — fall back safely to anonymous namespace
+                pass
+
+        return "anon"
 
     def __call__(self, request):
         if request.method not in ("POST", "PUT", "PATCH"):
@@ -28,8 +52,10 @@ class IdempotencyMiddleware:
         if not idempotency_key:
             return self.get_response(request)
 
-        user_id = request.user.id if request.user.is_authenticated else "anon"
-        cache_key = f"idempotency_{user_id}_{idempotency_key}"
+        user_identity = self._get_user_identity(request)
+        raw_key = str(idempotency_key).strip()
+        key_hash = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:32]
+        cache_key = f"idempotency_{user_identity}_{key_hash}"
 
         cached_response_data = cache.get(cache_key)
         if cached_response_data:
@@ -56,3 +82,4 @@ class IdempotencyMiddleware:
             )
 
         return response
+

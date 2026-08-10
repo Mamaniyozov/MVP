@@ -174,3 +174,76 @@ def test_password_reset_confirm_invalid_token_fails(client):
     assert "token" in confirm_response.data
 
 
+@pytest.mark.django_db
+def test_idempotency_middleware_user_isolation(client):
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    user_a = User.objects.create_user(username="usera@example.com", email="usera@example.com", password="Pass!1userA")
+    user_b = User.objects.create_user(username="userb@example.com", email="userb@example.com", password="Pass!1userB")
+
+    token_a = str(RefreshToken.for_user(user_a).access_token)
+    token_b = str(RefreshToken.for_user(user_b).access_token)
+
+    shared_key = "TXN-KEY-100"
+
+    # User A creates a category with shared idempotency key
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_a}", HTTP_IDEMPOTENCY_KEY=shared_key)
+    res_a1 = client.post("/api/v1/categories/", {"name": "User A Category", "type": "expense"})
+    assert res_a1.status_code == 201
+    assert res_a1.data["name"] == "User A Category"
+
+    # User A re-sends the same request -> gets cached HIT-Idempotent response
+    res_a2 = client.post("/api/v1/categories/", {"name": "User A Category", "type": "expense"})
+    assert res_a2.status_code == 201
+    assert res_a2.headers.get("X-Cache-Lookup") == "HIT-Idempotent"
+
+    # User B sends request with the SAME idempotency key -> MUST NOT get User A's response!
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_b}", HTTP_IDEMPOTENCY_KEY=shared_key)
+    res_b1 = client.post("/api/v1/categories/", {"name": "User B Category", "type": "expense"})
+    assert res_b1.status_code == 201
+    assert res_b1.data["name"] == "User B Category"
+    assert res_b1.headers.get("X-Cache-Lookup") is None
+
+
+@pytest.mark.django_db
+def test_idempotency_middleware_invalid_token_fallback(client):
+    from config.middleware import IdempotencyMiddleware
+    from django.test import RequestFactory
+
+    factory = RequestFactory()
+    req = factory.post("/api/v1/categories/", HTTP_AUTHORIZATION="Bearer invalid.jwt.token", HTTP_IDEMPOTENCY_KEY="ANON-KEY-1")
+    middleware = IdempotencyMiddleware(lambda r: None)
+    
+    # Verify _get_user_identity safely falls back to "anon" when token is invalid without raising an exception
+    identity = middleware._get_user_identity(req)
+    assert identity == "anon"
+
+
+@pytest.mark.django_db
+def test_idempotency_middleware_ignores_get(client):
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    user = User.objects.create_user(username="getuser@example.com", email="getuser@example.com", password="Pass!1get")
+    token = str(RefreshToken.for_user(user).access_token)
+
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_IDEMPOTENCY_KEY="GET-KEY")
+    res1 = client.get("/api/v1/categories/")
+    assert res1.status_code == 200
+    assert res1.headers.get("X-Cache-Lookup") is None
+
+    res2 = client.get("/api/v1/categories/")
+    assert res2.status_code == 200
+    assert res2.headers.get("X-Cache-Lookup") is None
+
+
+@pytest.mark.django_db
+def test_health_check_endpoint(client):
+    response = client.get("/api/v1/health/")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["database"] == "connected"
+
+
+
+
+
