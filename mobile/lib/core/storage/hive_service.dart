@@ -97,4 +97,24 @@ class HiveService implements OfflineCache {
   Future<void> clearAllCaches() async {
     await Future.wait(_boxNames.map(clearBox));
   }
+
+  /// Automatically processes all pending mutations sequentially using a [syncHandler].
+  Future<int> autoSyncPendingMutations(
+      Future<bool> Function(Map<String, dynamic> mutation) syncHandler) async {
+    final pending = getPendingMutations();
+    int syncedCount = 0;
+    for (final mutation in pending) {
+      final id = mutation['mutation_id']?.toString();
+      if (id == null) continue;
+      final success = await syncHandler(mutation);
+      if (success) {
+        await removeOfflineMutation(id);
+        syncedCount++;
+      } else {
+        // Break on failure to preserve sequential dependency ordering
+        break;
+      }
+    }
+    return syncedCount;
+  }
 }

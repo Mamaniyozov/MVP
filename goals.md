@@ -42,7 +42,7 @@ Loyiha 100% deb hisoblanadi, agar:
 
 ---
 
-## Phase 1 — Critical Stability — 10–25%
+## Phase G — Multi-language (i18n) (Prioritet: 8) [DONE]— 10–25%
 
 - [x] Build muammolarini tuzatish.
 - [x] Runtime crash'larni tuzatish.

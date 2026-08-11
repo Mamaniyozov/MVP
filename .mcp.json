@@ -23,6 +23,16 @@
     "perplexity-docs": {
       "type": "http",
       "url": "https://docs.perplexity.ai/mcp"
+    },
+    "playwright-testing": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mcp/playwright"
+      ],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      }
     }
   }
 }

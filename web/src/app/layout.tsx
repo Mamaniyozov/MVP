@@ -49,6 +49,8 @@ const THEME_INIT_SCRIPT = `
   })();
 `;
 
+import { NetworkBanner } from "@/components/NetworkBanner";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uz" className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
@@ -57,10 +59,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ErrorBoundary>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <NetworkBanner />
+          </AuthProvider>
         </ErrorBoundary>
       </body>
-
     </html>
   );
 }
