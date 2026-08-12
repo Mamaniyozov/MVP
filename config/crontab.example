@@ -1,0 +1,18 @@
+# Example Crontab Configuration for Hisob Finance
+# This file can be installed on the host or a dedicated cron container.
+
+# Environment variables needed for backup script
+# Ensure these match your production .env or are sourced correctly
+# BACKUP_DIR=/backups
+# POSTGRES_DB=finance_db
+# POSTGRES_USER=finance_user
+# DB_HOST=db
+# DB_PORT=5432
+# RETENTION_DAYS=30
+# AWS_S3_BUCKET=my-hisob-backups
+# AWS_ACCESS_KEY_ID=...
+# AWS_SECRET_ACCESS_KEY=...
+# GPG_RECIPIENT=admin@hisob.finance
+
+# Run database backup every day at 02:00 AM (server time)
+0 2 * * * root /bin/bash /opt/hisob/scripts/backup_db.sh >> /var/log/hisob_backup.log 2>&1
