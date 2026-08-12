@@ -14,7 +14,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<authApi.LoginResponse>;
+  completeLogin: (email: string, access: string, refresh: string) => void;
   register: (email: string, password: string, password2: string) => Promise<void>;
   logout: () => void;
 }
@@ -46,12 +47,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => forceLogoutBus.subscribe(logout), [logout]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const tokens = await authApi.login(email, password);
-    tokenStore.set(tokens.access, tokens.refresh);
+  const completeLogin = useCallback((email: string, access: string, refresh: string) => {
+    tokenStore.set(access, refresh);
     localStorage.setItem(EMAIL_KEY, email);
     setState({ isAuthenticated: true, isLoading: false, email });
   }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await authApi.login(email, password);
+    if (!res.mfa_required && res.access && res.refresh) {
+      completeLogin(email, res.access, res.refresh);
+    }
+    return res;
+  }, [completeLogin]);
 
   const register = useCallback(
     async (email: string, password: string, password2: string) => {
@@ -62,8 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ...state, login, register, logout }),
-    [state, login, register, logout],
+    () => ({ ...state, login, completeLogin, register, logout }),
+    [state, login, completeLogin, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

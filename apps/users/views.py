@@ -41,6 +41,15 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
+        
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        device = TOTPDevice.objects.filter(user=user, name="default", confirmed=True).first()
+        if device:
+            from django.core.signing import TimestampSigner
+            signer = TimestampSigner()
+            temp_token = signer.sign(str(user.id))
+            return Response({"mfa_required": True, "temp_token": temp_token}, status=status.HTTP_200_OK)
+
         refresh = RefreshToken.for_user(user)
         return Response(
             {"access": str(refresh.access_token), "refresh": str(refresh)},

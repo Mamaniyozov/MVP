@@ -7,8 +7,48 @@ interface TokenPair {
   refresh: string;
 }
 
-export async function login(email: string, password: string): Promise<TokenPair> {
-  const { data } = await axios.post<TokenPair>(`${API_BASE_URL}/auth/login/`, { email, password });
+export interface LoginResponse {
+  access?: string;
+  refresh?: string;
+  mfa_required?: boolean;
+  temp_token?: string;
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const { data } = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login/`, { email, password });
+  return data;
+}
+
+export async function requestOTP(phone_number: string): Promise<{ detail: string, otp?: string }> {
+  const { data } = await axios.post(`${API_BASE_URL}/auth/otp/request/`, { phone_number });
+  return data;
+}
+
+export async function verifyOTP(phone_number: string, otp: string): Promise<LoginResponse> {
+  const { data } = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/otp/verify/`, { phone_number, otp });
+  return data;
+}
+
+export async function setupMFA(accessToken: string): Promise<{ detail: string, qr_code: string }> {
+  const { data } = await axios.post(`${API_BASE_URL}/auth/mfa/setup/`, {}, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return data;
+}
+
+export async function verifyMFA(token: string, tempToken?: string, accessToken?: string): Promise<LoginResponse | { detail: string }> {
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+  const payload: any = { token };
+  if (tempToken) payload.temp_token = tempToken;
+  
+  const { data } = await axios.post(`${API_BASE_URL}/auth/mfa/verify/`, payload, { headers });
+  return data;
+}
+
+export async function registerPhone(phone_number: string, accessToken: string): Promise<{ detail: string, phone_number: string }> {
+  const { data } = await axios.post(`${API_BASE_URL}/auth/phone/register/`, { phone_number }, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
   return data;
 }
 

@@ -21,8 +21,14 @@ export default function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/dashboard");
+      const res = await login(email, password);
+      if (res.mfa_required && res.temp_token) {
+        sessionStorage.setItem("mfa_temp_token", res.temp_token);
+        sessionStorage.setItem("mfa_email", email);
+        router.push("/mfa");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError(apiErrorMessage(err, "Email yoki parol noto'g'ri."));
     } finally {
@@ -86,12 +92,20 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-sm text-ink-muted">
-        Hisobingiz yo&apos;qmi?{" "}
-        <Link href="/register" className="font-medium text-brand hover:underline dark:text-income">
-          Ro&apos;yxatdan o&apos;ting
-        </Link>
-      </p>
+      <div className="mt-6 flex flex-col gap-2 text-sm text-ink-muted">
+        <p>
+          Hisobingiz yo&apos;qmi?{" "}
+          <Link href="/register" className="font-medium text-brand hover:underline dark:text-income">
+            Ro&apos;yxatdan o&apos;ting
+          </Link>
+        </p>
+        <p>
+          Telefon orqali kirishni xohlaysizmi?{" "}
+          <Link href="/login/phone" className="font-medium text-brand hover:underline dark:text-income">
+            Telefon orqali kirish
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
