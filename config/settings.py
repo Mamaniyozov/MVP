@@ -223,13 +223,14 @@ LOGGING = {
 }
 
 REDIS_URL = env.str("REDIS_URL", default="redis://127.0.0.1:6379/1")
+REDIS_CLUSTER_MODE = env.bool("REDIS_CLUSTER_MODE", default=False)
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CLIENT_CLASS": "config.redis.RedisClusterClient" if REDIS_CLUSTER_MODE else "django_redis.client.DefaultClient",
         }
     }
 }
