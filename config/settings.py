@@ -3,8 +3,12 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+except ImportError:
+    sentry_sdk = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -14,7 +18,7 @@ env = environ.Env(
 environ.Env.read_env(BASE_DIR / ".env")
 
 SENTRY_DSN = env.str("SENTRY_DSN", default="")
-if SENTRY_DSN:
+if SENTRY_DSN and sentry_sdk:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
@@ -52,6 +56,9 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
+    "axes",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
 ] + LOCAL_APPS
 
 
@@ -65,10 +72,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
     "config.middleware.IdempotencyMiddleware",
     "config.middleware.AuditLogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
@@ -209,9 +218,32 @@ LOGGING = {
         },
         "apps": {
             "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": False,
         },
     },
 }
 
+REDIS_URL = env.str("REDIS_URL", default="redis://127.0.0.1:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1  # 1 hour
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = None # Can be set to a specific template
+AXES_CACHE = "default"

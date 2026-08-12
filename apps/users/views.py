@@ -3,6 +3,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 
 from apps.users.serializers import (
     ChangePasswordSerializer,
@@ -34,8 +36,9 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthAnonRateThrottle]
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+        serializer = LoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
@@ -97,6 +100,7 @@ class OTPRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthAnonRateThrottle]
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
         from apps.users.otp import generate_otp
 
@@ -120,6 +124,7 @@ class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthAnonRateThrottle]
 
+    @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True))
     def post(self, request):
         from apps.users.models import UserProfile
         from apps.users.otp import verify_otp
@@ -141,6 +146,10 @@ class OTPVerifyView(APIView):
                 {"detail": "Bu telefon raqamiga tegishli foydalanuvchi topilmadi."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        if not profile.is_phone_verified:
+            profile.is_phone_verified = True
+            profile.save()
 
         user = profile.user
         refresh = RefreshToken.for_user(user)

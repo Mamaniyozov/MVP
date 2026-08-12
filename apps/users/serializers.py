@@ -42,7 +42,8 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         from django.contrib.auth import authenticate
 
-        user = authenticate(username=attrs["email"], password=attrs["password"])
+        request = self.context.get("request")
+        user = authenticate(request=request, username=attrs["email"], password=attrs["password"])
         if user is None:
             raise serializers.ValidationError("Invalid email or password.")
         attrs["user"] = user

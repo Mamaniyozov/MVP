@@ -26,6 +26,16 @@ pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
 if [ $? -eq 0 ]; then
     FILE_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     echo "[$(date)] Backup successful: $BACKUP_FILE ($FILE_SIZE)"
+    
+    if [ -n "${AWS_S3_BUCKET:-}" ]; then
+        echo "[$(date)] Uploading to S3 bucket $AWS_S3_BUCKET..."
+        aws s3 cp "$BACKUP_FILE" "s3://$AWS_S3_BUCKET/db_backups/"
+        if [ $? -eq 0 ]; then
+            echo "[$(date)] S3 Upload successful."
+        else
+            echo "[$(date)] ERROR: S3 Upload failed!" >&2
+        fi
+    fi
 else
     echo "[$(date)] ERROR: Backup failed!" >&2
     exit 1

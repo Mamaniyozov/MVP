@@ -11,6 +11,7 @@ from apps.users.views import (
     PhoneRegisterView,
     RegisterView,
 )
+from apps.users.mfa_views import MFASetupView, MFAVerifyView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
@@ -22,4 +23,6 @@ urlpatterns = [
     path("phone/register/", PhoneRegisterView.as_view(), name="auth-phone-register"),
     path("otp/request/", OTPRequestView.as_view(), name="auth-otp-request"),
     path("otp/verify/", OTPVerifyView.as_view(), name="auth-otp-verify"),
+    path("mfa/setup/", MFASetupView.as_view(), name="auth-mfa-setup"),
+    path("mfa/verify/", MFAVerifyView.as_view(), name="auth-mfa-verify"),
 ]

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     gcc \
     curl \
+    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -m appuser
