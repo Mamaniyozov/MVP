@@ -13,4 +13,4 @@ class TransactionFilter(django_filters.FilterSet):
 
     class Meta:
         model = Transaction
-        fields = ["category", "type", "card", "date_from", "date_to"]
+        fields = ["category", "type", "account", "date_from", "date_to"]

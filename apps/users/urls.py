@@ -4,6 +4,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.users.views import (
     ChangePasswordView,
     LoginView,
+    LogoutView,
+    CookieTokenRefreshView,
     OTPRequestView,
     OTPVerifyView,
     PasswordResetConfirmView,
@@ -16,7 +18,8 @@ from apps.users.mfa_views import MFASetupView, MFAVerifyView
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
     path("login/", LoginView.as_view(), name="auth-login"),
-    path("refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
+    path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path("refresh/", CookieTokenRefreshView.as_view(), name="auth-refresh"),
     path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),

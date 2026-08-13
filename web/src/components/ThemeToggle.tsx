@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Sun, Moon } from "lucide-react";
 
 function applyTheme(theme: "dark" | "light") {
   document.documentElement.classList.toggle("dark", theme === "dark");
@@ -33,14 +34,9 @@ export function ThemeToggle() {
       title={theme === "dark" ? "Yorug' rejim" : "Qorong'i rejim"}
     >
       {theme === "dark" ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-          <circle cx="12" cy="12" r="4.2" />
-          <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" strokeLinecap="round" />
-        </svg>
+        <Sun size={16} strokeWidth={1.5} aria-hidden />
       ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-          <path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <Moon size={16} strokeWidth={1.5} aria-hidden />
       )}
     </button>
   );

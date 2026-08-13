@@ -11,15 +11,15 @@ class AppColors {
   static const expense = Color(0xFFC4573B);
   static const accent = Color(0xFFE8A33D);
   static const accentSoft = Color(0xFFFBEBD2);
-  static const paper = Color(0xFFF3F6F4);
+  static const paper = Color(0xFFF8FAFC);
   static const surface = Color(0xFFFFFFFF);
-  static const line = Color(0xFFDFE6E1);
+  static const line = Color(0xFFF1F5F9);
   static const ink = Color(0xFF12231C);
   static const inkMuted = Color(0xFF5C6B63);
 
-  static const paperDark = Color(0xFF0E1712);
-  static const surfaceDark = Color(0xFF16211B);
-  static const lineDark = Color(0xFF263229);
+  static const paperDark = Color(0xFF0F172A);
+  static const surfaceDark = Color(0xFF1E293B);
+  static const lineDark = Color(0xFF334155);
   static const inkDark = Color(0xFFE9F1EC);
   static const inkDarkMuted = Color(0xFF93A69B);
 

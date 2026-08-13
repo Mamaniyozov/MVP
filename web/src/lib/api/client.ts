@@ -4,36 +4,26 @@ import { forceLogoutBus, tokenStore } from "./tokenStore";
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
-export const apiClient = axios.create({ baseURL: API_BASE_URL });
-
-apiClient.interceptors.request.use((config) => {
-  const access = tokenStore.getAccess();
-  if (access) {
-    config.headers.set("Authorization", `Bearer ${access}`);
-  }
-  return config;
+export const apiClient = axios.create({ 
+  baseURL: API_BASE_URL,
+  withCredentials: true // Important for sending/receiving HttpOnly cookies
 });
 
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = tokenStore.getRefresh();
-  if (!refresh) return null;
-
+async function refreshAccessToken(): Promise<boolean> {
   try {
-    const { data } = await axios.post<{ access: string }>(`${API_BASE_URL}/auth/refresh/`, {
-      refresh,
-    });
-    tokenStore.setAccess(data.access);
-    return data.access;
+    // The browser will automatically send the refresh_token cookie
+    await axios.post(`${API_BASE_URL}/auth/refresh/`, {}, { withCredentials: true });
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
 
 interface RetriableConfig extends InternalAxiosRequestConfig {
   _retried?: boolean;
 }
+
+let refreshPromise: Promise<boolean> | null = null;
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -47,10 +37,10 @@ apiClient.interceptors.response.use(
       refreshPromise ??= refreshAccessToken().finally(() => {
         refreshPromise = null;
       });
-      const newAccess = await refreshPromise;
+      const success = await refreshPromise;
 
-      if (newAccess) {
-        original.headers.set("Authorization", `Bearer ${newAccess}`);
+      if (success) {
+        // Cookies were set by the refresh endpoint, just retry the request
         return apiClient(original);
       }
 

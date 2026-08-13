@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
-from apps.cards.models import Card
+from apps.accounts.models import Account
 from apps.categories.models import Category
 from apps.transactions.models import Transaction
 
@@ -54,11 +54,11 @@ def test_cannot_use_other_users_category():
 
 
 @pytest.mark.django_db
-def test_cannot_use_other_users_card():
+def test_cannot_use_other_users_account():
     user = User.objects.create_user(username="t4@example.com", email="t4@example.com", password="Str0ngPass!1")
     other = User.objects.create_user(username="t5@example.com", email="t5@example.com", password="Str0ngPass!1")
     category = Category.objects.filter(user=user, type="expense").first()
-    other_card = Card.objects.create(user=other, name="Other's Visa")
+    other_account = Account.objects.create(user=other, name="Other's Visa")
 
     client = APIClient()
     client.force_authenticate(user=user)
@@ -67,7 +67,7 @@ def test_cannot_use_other_users_card():
         "/api/v1/transactions/",
         {
             "category": category.id,
-            "card": other_card.id,
+            "account": other_account.id,
             "amount": "1000",
             "type": "expense",
             "date": "2026-07-13",

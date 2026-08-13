@@ -3,6 +3,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 
@@ -32,6 +34,29 @@ class RegisterView(generics.CreateAPIView):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> Response:
+    """Helper to set HttpOnly cookies for JWT tokens"""
+    cookie_settings = getattr(settings, 'SIMPLE_JWT', {})
+    
+    response.set_cookie(
+        key=cookie_settings.get('AUTH_COOKIE', 'access_token'),
+        value=access_token,
+        max_age=cookie_settings.get('ACCESS_TOKEN_LIFETIME').total_seconds() if cookie_settings.get('ACCESS_TOKEN_LIFETIME') else 3600,
+        secure=settings.SESSION_COOKIE_SECURE,
+        httponly=True,
+        samesite=cookie_settings.get('AUTH_COOKIE_SAMESITE', 'Lax'),
+    )
+    response.set_cookie(
+        key=cookie_settings.get('REFRESH_COOKIE', 'refresh_token'),
+        value=refresh_token,
+        max_age=cookie_settings.get('REFRESH_TOKEN_LIFETIME').total_seconds() if cookie_settings.get('REFRESH_TOKEN_LIFETIME') else 86400,
+        secure=settings.SESSION_COOKIE_SECURE,
+        httponly=True,
+        samesite=cookie_settings.get('AUTH_COOKIE_SAMESITE', 'Lax'),
+    )
+    return response
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthAnonRateThrottle]
@@ -51,10 +76,11 @@ class LoginView(APIView):
             return Response({"mfa_required": True, "temp_token": temp_token}, status=status.HTTP_200_OK)
 
         refresh = RefreshToken.for_user(user)
-        return Response(
+        response = Response(
             {"access": str(refresh.access_token), "refresh": str(refresh)},
             status=status.HTTP_200_OK,
         )
+        return set_auth_cookies(response, str(refresh.access_token), str(refresh))
 
 
 class ChangePasswordView(APIView):
@@ -162,7 +188,73 @@ class OTPVerifyView(APIView):
 
         user = profile.user
         refresh = RefreshToken.for_user(user)
-        return Response(
+        response = Response(
             {"access": str(refresh.access_token), "refresh": str(refresh)},
             status=status.HTTP_200_OK,
         )
+        return set_auth_cookies(response, str(refresh.access_token), str(refresh))
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    throttle_classes = [AuthAnonRateThrottle]
+
+    def post(self, request, *args, **kwargs):
+        cookie_settings = getattr(settings, 'SIMPLE_JWT', {})
+        refresh_cookie_name = cookie_settings.get('REFRESH_COOKIE', 'refresh_token')
+        
+        # Pull refresh token from cookie if not in request data
+        if refresh_cookie_name in request.COOKIES and 'refresh' not in request.data:
+            # We must make a mutable copy of request.data to inject the token
+            mutable_data = request.data.copy()
+            mutable_data['refresh'] = request.COOKIES[refresh_cookie_name]
+            request._full_data = mutable_data
+            
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == status.HTTP_200_OK:
+            access_token = response.data.get('access')
+            refresh_token = response.data.get('refresh') # Might be absent if not rotated
+            
+            response.set_cookie(
+                key=cookie_settings.get('AUTH_COOKIE', 'access_token'),
+                value=access_token,
+                max_age=cookie_settings.get('ACCESS_TOKEN_LIFETIME').total_seconds() if cookie_settings.get('ACCESS_TOKEN_LIFETIME') else 3600,
+                secure=settings.SESSION_COOKIE_SECURE,
+                httponly=True,
+                samesite=cookie_settings.get('AUTH_COOKIE_SAMESITE', 'Lax'),
+            )
+            if refresh_token:
+                response.set_cookie(
+                    key=cookie_settings.get('REFRESH_COOKIE', 'refresh_token'),
+                    value=refresh_token,
+                    max_age=cookie_settings.get('REFRESH_TOKEN_LIFETIME').total_seconds() if cookie_settings.get('REFRESH_TOKEN_LIFETIME') else 86400,
+                    secure=settings.SESSION_COOKIE_SECURE,
+                    httponly=True,
+                    samesite=cookie_settings.get('AUTH_COOKIE_SAMESITE', 'Lax'),
+                )
+        return response
+
+
+class LogoutView(TokenBlacklistView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonRateThrottle]
+
+    def post(self, request, *args, **kwargs):
+        cookie_settings = getattr(settings, 'SIMPLE_JWT', {})
+        refresh_cookie_name = cookie_settings.get('REFRESH_COOKIE', 'refresh_token')
+        
+        # Inject refresh token from cookie if not provided
+        if refresh_cookie_name in request.COOKIES and 'refresh' not in request.data:
+            mutable_data = request.data.copy()
+            mutable_data['refresh'] = request.COOKIES[refresh_cookie_name]
+            request._full_data = mutable_data
+
+        try:
+            response = super().post(request, *args, **kwargs)
+        except Exception:
+            # Even if blacklist fails (e.g. token expired), we still want to clear cookies
+            response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+
+        response.delete_cookie(cookie_settings.get('AUTH_COOKIE', 'access_token'))
+        response.delete_cookie(refresh_cookie_name)
+        return response

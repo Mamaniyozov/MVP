@@ -49,7 +49,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user).select_related(
-            "category", "card", "goal"
+            "category", "account", "goal"
         )
 
     def perform_create(self, serializer):
@@ -98,7 +98,7 @@ class TransactionExportView(APIView):
                 return f"'{val}"
             return val
 
-        queryset = Transaction.objects.filter(user=request.user).select_related("category", "card")
+        queryset = Transaction.objects.filter(user=request.user).select_related("category", "account")
 
         # Apply basic filters
         date_from = request.query_params.get("date_from")
@@ -126,13 +126,13 @@ class TransactionExportView(APIView):
 
         for tx in queryset:
             type_display = "Daromad" if tx.type == "income" else "Xarajat"
-            card_name = tx.card.name if tx.card else "-"
+            account_name = tx.account.name if tx.account else "-"
             writer.writerow([
                 tx.date, 
                 type_display, 
                 sanitize_csv(tx.category.name), 
                 tx.amount, 
-                sanitize_csv(card_name), 
+                sanitize_csv(account_name), 
                 sanitize_csv(tx.note)
             ])
 
@@ -144,7 +144,7 @@ class RecurringTransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return RecurringTransaction.objects.filter(user=self.request.user).select_related("category", "card")
+        return RecurringTransaction.objects.filter(user=self.request.user).select_related("category", "account")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

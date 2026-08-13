@@ -1,42 +1,30 @@
 import { formatSum } from "@/lib/format";
+import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp, TrendingDown } from "lucide-react";
 
 type Tone = "income" | "expense" | "brand";
 
 const TONE: Record<
   Tone,
-  { text: string; chipBg: string; bar: string }
+  { text: string; chipBg: string; bar: string; icon: React.ElementType }
 > = {
   income: {
     text: "text-income",
     chipBg: "bg-income/10 text-income",
     bar: "from-income/60 to-income/0",
+    icon: ArrowUpRight,
   },
   expense: {
     text: "text-expense",
     chipBg: "bg-expense/10 text-expense",
     bar: "from-expense/60 to-expense/0",
+    icon: ArrowDownRight,
   },
   brand: {
     text: "text-brand dark:text-income",
     chipBg: "bg-brand/10 text-brand dark:bg-income/10 dark:text-income",
     bar: "from-brand/60 to-brand/0",
+    icon: Clock,
   },
-};
-
-const TONE_ICON: Record<Tone, React.ReactNode> = {
-  income: (
-    <path d="M12 19V5m0 0l-6 6m6-6l6 6" strokeLinecap="round" strokeLinejoin="round" />
-  ),
-  expense: (
-    <path d="M12 5v14m0 0l-6-6m6 6l6-6" strokeLinecap="round" strokeLinejoin="round" />
-  ),
-  brand: (
-    <path
-      d="M4 12a8 8 0 1116 0 8 8 0 01-16 0zm8-4v4l2.5 2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
 };
 
 export function StatCard({
@@ -52,6 +40,7 @@ export function StatCard({
 }) {
   const t = TONE[tone];
   const glowClass = tone === "income" ? "glow-income" : tone === "expense" ? "glow-expense" : "glow-brand";
+  const Icon = t.icon;
 
   return (
     <div className={`card card-lift relative overflow-hidden px-5 py-5 ${glowClass}`}>
@@ -65,9 +54,7 @@ export function StatCard({
           aria-hidden
           className={`inline-flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform duration-200 hover:scale-105 ${t.chipBg}`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {TONE_ICON[tone]}
-          </svg>
+          <Icon size={18} strokeWidth={1.5} />
         </span>
       </div>
       <p className={`amount mt-2 text-[1.75rem] font-semibold leading-tight tracking-tight ${t.text}`}>
@@ -79,13 +66,11 @@ export function StatCard({
             changePercent >= 0 ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
           }`}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-            {changePercent >= 0 ? (
-              <path d="M4 15l8-8 8 8" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
-              <path d="M4 9l8 8 8-8" strokeLinecap="round" strokeLinejoin="round" />
-            )}
-          </svg>
+          {changePercent >= 0 ? (
+            <TrendingUp size={14} strokeWidth={2} aria-hidden />
+          ) : (
+            <TrendingDown size={14} strokeWidth={2} aria-hidden />
+          )}
           {Math.abs(changePercent).toFixed(1)}% o&apos;tgan oyga nisbatan
         </p>
       ) : (
@@ -96,3 +81,4 @@ export function StatCard({
     </div>
   );
 }
+

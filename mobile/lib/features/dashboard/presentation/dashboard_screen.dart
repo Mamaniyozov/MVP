@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/core/theme/pro_max_card.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_controller.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -240,15 +241,14 @@ class _DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
+    return ProMaxCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
@@ -284,8 +284,7 @@ class _DashboardCard extends StatelessWidget {
                 Icons.chevron_right,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

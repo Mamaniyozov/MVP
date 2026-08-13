@@ -123,12 +123,12 @@
   }
 
   .card {
-    @apply rounded-card border border-line/80 bg-surface/90 backdrop-blur-md shadow-card transition-all duration-300 dark:border-line-dark/80 dark:bg-surface-dark/90;
+    @apply rounded-panel bg-surface shadow-card transition-all duration-300 dark:border dark:border-line-dark/80 dark:bg-surface-dark/90 dark:shadow-none;
   }
 
   /* Interactive card variant: lifts and glows subtly on hover for clickable surfaces. */
   .card-lift {
-    @apply hover:-translate-y-1 hover:shadow-card-hover hover:border-brand/30 dark:hover:border-income/30 transition-[transform,box-shadow,border-color] duration-300;
+    @apply hover:-translate-y-1 hover:shadow-card-hover transition-[transform,box-shadow] duration-300 dark:hover:border-brand/30;
   }
 
   .glow-brand {
@@ -144,15 +144,15 @@
   }
 
   .input {
-    @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-[inset_0_1px_2px_rgba(18,35,28,0.03)] transition-[border-color,box-shadow] duration-200 placeholder:text-ink-muted hover:border-ink-muted/40 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_rgba(15,107,76,0.12)] dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:hover:border-white/20;
+    @apply w-full rounded-2xl bg-surface px-4 py-3 text-sm text-ink shadow-panel-inset outline-none transition-[box-shadow,border-color] duration-200 placeholder:text-ink-muted focus-visible:shadow-[inset_5px_5px_10px_rgba(163,177,198,0.7),inset_-5px_-5px_10px_rgba(255,255,255,0.9)] dark:border dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:shadow-none;
   }
 
   .btn-primary {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-grad-brand px-4 py-2.5 text-sm font-medium text-white shadow-btn-brand transition-[filter,box-shadow,transform,opacity] duration-200 hover:brightness-110 hover:shadow-glow active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-brand to-brand-strong px-6 py-3.5 text-sm font-semibold text-white shadow-[0_8px_16px_-4px_rgba(15,107,76,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] border border-transparent transition-[all] duration-200 hover:brightness-110 hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100 disabled:hover:translate-y-0;
   }
 
   .btn-secondary {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink shadow-[0_1px_2px_rgba(18,35,28,0.05)] transition-[border-color,background-color,transform,opacity] duration-200 hover:border-brand/30 hover:bg-paper active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:hover:border-white/20 dark:hover:bg-white/5;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-surface px-6 py-3.5 text-sm font-semibold text-ink shadow-card transition-[all] duration-200 hover:-translate-y-0.5 hover:shadow-card-hover active:scale-[0.97] active:shadow-panel-inset disabled:cursor-not-allowed disabled:opacity-60 dark:border dark:border-line-dark dark:bg-surface-dark dark:text-ink-dark dark:shadow-none dark:hover:bg-slate-800;
   }
 
   /* Animated background orbs — used by <AnimatedBackground />. */

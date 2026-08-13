@@ -1,72 +1,82 @@
-# Finance App — Backend
+# 🚀 Hisob - Personal Finance Tracker
 
-Django + DRF API for the personal finance tracking app.
+![Python](https://img.shields.io/badge/Python-3.12-blue.svg)
+![Django](https://img.shields.io/badge/Django-5.x-success.svg)
+![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
+![Celery](https://img.shields.io/badge/Celery-Task_Queue-green.svg)
 
-## Stack
+**Hisob** is a modern, full-stack personal finance tracking application. It features a robust Django REST Framework backend and a sleek Next.js (App Router, TailwindCSS) web client utilizing the latest "Pro Max 3D Panel" Neumorphism UI.
 
-- Python 3.12, Django 5.x, Django REST Framework
-- PostgreSQL 16
-- djangorestframework-simplejwt (JWT auth)
-- drf-spectacular (OpenAPI schema / Swagger UI)
-- pytest-django (tests)
+---
 
-## Running with Docker
+## ✨ Features
 
-1. Copy the env template and fill in real values:
+- **🔐 Secure Authentication**: Next-gen security using `HttpOnly` Cookies for JWT access and refresh tokens, automatic token refreshing (Axios Interceptors), brute-force protection (Django Axes), and Rate Limiting.
+- **💰 Financial Management**: Advanced management with multiple apps: `accounts`, `merchants`, `tags`, and flexible `TransactionSplit` models.
+- **📈 Investments & Debts**: Track stocks, crypto, and loans with built-in payoff schedulers and profit/loss calculations.
+- **🎯 Budgets & Goals**: Smart rollover budgets, auto-saving goals, and priority tracking.
+- **📊 Advanced Analytics**: Automated celery tasks to generate monthly reports and beautiful Recharts visualizations.
+- **🛡️ Production-Ready**: Pre-configured for WAFs (Cloudflare/AWS), structured logging, Prometheus metrics, and Sentry error tracking.
+- **🐳 Dockerized**: Spin up the entire full-stack ecosystem (Postgres, Redis, Django, Celery, Next.js) with a single command.
 
-   ```bash
-   cp .env.example .env
-   ```
+---
 
-2. Build and start the stack:
+## 🛠️ Tech Stack
 
-   ```bash
-   docker-compose up --build
-   ```
+### Backend
+- **Framework**: Django 5.x & Django REST Framework
+- **Database**: PostgreSQL 16
+- **Caching & Async Tasks**: Redis 7, Celery
+- **Security**: djangorestframework-simplejwt, django-axes, django-ratelimit
+- **Documentation**: drf-spectacular (Swagger UI / OpenAPI)
 
-   This starts three services:
-   - `db` — PostgreSQL 16
-   - `backend` — Django dev server on http://localhost:8000
-   - `web` — Next.js dev server on http://localhost:3000 (see `web/README.md`), talking to `backend` via `WEB_API_BASE_URL` (defaults to `http://localhost:8000/api/v1`)
+### Frontend (Web)
+- **Framework**: Next.js (App Router), TypeScript
+- **Styling**: Tailwind CSS (Pro Max Neumorphism)
+- **State & Data Fetching**: Axios (with interceptors), React Context
+- **Visualizations**: Recharts
 
-3. Apply migrations (first run):
+---
 
-   ```bash
-   docker-compose run backend python manage.py migrate
-   ```
+## 🚀 Quick Start (Docker)
 
-4. (Optional) create a superuser for `/admin/`:
+The easiest way to run the entire ecosystem is via Docker.
 
-   ```bash
-   docker-compose run backend python manage.py createsuperuser
-   ```
-
-## API docs
-
-- Swagger UI: http://localhost:8000/api/schema/swagger-ui/
-- Raw OpenAPI schema: http://localhost:8000/api/schema/
-
-## Auth endpoints
-
-- `POST /api/v1/auth/register/` — `email`, `password`, `password2`
-- `POST /api/v1/auth/login/` — `email`, `password` → `access` + `refresh`
-- `POST /api/v1/auth/refresh/` — `refresh` → new `access`
-
-Registering a user automatically creates a `UserProfile` and a default set of
-expense/income categories (via a `post_save` signal on `User`, implemented in
-`apps/users/services.py`).
-
-## Resource endpoints
-
-All under `/api/v1/`, JWT-authenticated, scoped to the requesting user:
-
-- `categories/`
-- `cards/`
-- `transactions/`
-- `goals/`
-
-## Running tests
-
+### 1. Environment Setup
+Copy the environment template and configure your secrets:
 ```bash
-docker-compose run backend pytest -v
+cp .env.example .env
 ```
+
+### 2. Build and Run
+```bash
+docker-compose up -d --build
+```
+*This starts the following networked services:*
+- **`db`**: PostgreSQL on `:5432`
+- **`redis`**: Redis Cache on `:6380`
+- **`backend`**: Django API at `http://localhost:8000`
+- **`celery`**: Async task worker for Analytics and Reports
+- **`web`**: Next.js Client at `http://localhost:3000`
+
+### 3. Initialize Database
+Run migrations and create an admin user on the first run:
+```bash
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py createsuperuser
+```
+
+🎉 **You're all set!** 
+- Access the **Web App** at [http://localhost:3000](http://localhost:3000)
+- Access the **API Docs (Swagger)** at [http://localhost:8000/api/schema/swagger-ui/](http://localhost:8000/api/schema/swagger-ui/)
+
+---
+
+## 🔗 Connecting the Frontend & Backend
+
+The frontend (`web`) and backend (`backend`) are tightly integrated with a focus on security:
+- **HttpOnly Cookies**: The authentication flow does not expose JWT tokens to `localStorage`. The backend sets `HttpOnly` cookies, preventing XSS attacks.
+- **Axios Configuration**: The Next.js client uses `withCredentials: true` in its Axios configuration.
+- **Automated Renewals**: Tokens are refreshed silently in the background when the `401` interceptor is triggered.

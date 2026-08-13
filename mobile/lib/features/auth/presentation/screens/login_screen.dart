@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/theme/pro_max_button.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_controller.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_state.dart';
 
@@ -118,16 +119,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : _submit,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                  isLoading
+                      ? const Center(
+                          child: SizedBox(
+                            height: 24,
+                            width: 24,
                             child: CircularProgressIndicator(strokeWidth: 2.5),
-                          )
-                        : const Text('Kirish'),
-                  ),
+                          ),
+                        )
+                      : ProMaxButton(
+                          label: 'Kirish',
+                          onPressed: _submit,
+                        ),
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: isLoading ? null : () => context.go(AppRoutes.register),

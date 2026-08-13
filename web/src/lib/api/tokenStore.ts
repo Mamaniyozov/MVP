@@ -1,27 +1,27 @@
 const ACCESS_KEY = "hisob_access";
 const REFRESH_KEY = "hisob_refresh";
 
-/** Thin wrapper around localStorage so the rest of the app never touches
- * storage keys directly — mirrors the mobile client's secure-storage boundary. */
+/** Thin wrapper around tokens (now managed via HttpOnly cookies by backend).
+ * We keep this file mainly for the forceLogoutBus pattern.
+ */
 export const tokenStore = {
+  // Mobile app might still use this, but web relies on cookies.
+  // We keep empty methods to satisfy existing typescript usages
+  // that haven't been fully refactored, or to allow mobile-web shared code.
   getAccess(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(ACCESS_KEY);
+    return null;
   },
   getRefresh(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(REFRESH_KEY);
+    return null;
   },
-  set(access: string, refresh: string) {
-    localStorage.setItem(ACCESS_KEY, access);
-    localStorage.setItem(REFRESH_KEY, refresh);
+  set(_access: string, _refresh: string) {
+    // No-op for web
   },
-  setAccess(access: string) {
-    localStorage.setItem(ACCESS_KEY, access);
+  setAccess(_access: string) {
+    // No-op for web
   },
   clear() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    // No-op for web (LogoutView clears cookies)
   },
 };
 

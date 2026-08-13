@@ -10,7 +10,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "category",
-            "card",
+            "account",
             "goal",
             "amount",
             "type",
@@ -27,9 +27,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         if category is not None and category.user_id is not None and category.user_id != request.user.id:
             raise serializers.ValidationError({"category": "Category does not belong to this user."})
 
-        card = attrs.get("card", getattr(self.instance, "card", None))
-        if card is not None and card.user_id != request.user.id:
-            raise serializers.ValidationError({"card": "Card does not belong to this user."})
+        account = attrs.get("account", getattr(self.instance, "account", None))
+        if account is not None and account.user_id != request.user.id:
+            raise serializers.ValidationError({"account": "Account does not belong to this user."})
 
         goal = attrs.get("goal", getattr(self.instance, "goal", None))
         tx_type = attrs.get("type", getattr(self.instance, "type", None))
@@ -52,7 +52,7 @@ class RecurringTransactionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "category",
-            "card",
+            "account",
             "amount",
             "type",
             "frequency",
@@ -70,9 +70,9 @@ class RecurringTransactionSerializer(serializers.ModelSerializer):
         if category is not None and category.user_id is not None and category.user_id != request.user.id:
             raise serializers.ValidationError({"category": "Category does not belong to this user."})
 
-        card = attrs.get("card", getattr(self.instance, "card", None))
-        if card is not None and card.user_id != request.user.id:
-            raise serializers.ValidationError({"card": "Card does not belong to this user."})
+        account = attrs.get("account", getattr(self.instance, "account", None))
+        if account is not None and account.user_id != request.user.id:
+            raise serializers.ValidationError({"account": "Account does not belong to this user."})
 
         return attrs
 

@@ -6,9 +6,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: { DEFAULT: "#F3F6F4", dark: "#0E1712" },
-        surface: { DEFAULT: "#FFFFFF", dark: "#16211B" },
-        line: { DEFAULT: "#DFE6E1", dark: "#263229" },
+        paper: { DEFAULT: "#F0F3F6", dark: "#0F172A" },
+        surface: { DEFAULT: "#F0F3F6", dark: "#1E293B" },
+        line: { DEFAULT: "#F1F5F9", dark: "#334155" },
         ink: {
           DEFAULT: "#12231C",
           muted: "#5C6B63",
@@ -31,14 +31,15 @@ const config: Config = {
       },
       borderRadius: {
         card: "16px",
+        panel: "24px",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(18, 35, 28, 0.04), 0 8px 24px -12px rgba(18, 35, 28, 0.10)",
-        "card-hover":
-          "0 2px 4px rgba(18, 35, 28, 0.05), 0 16px 40px -12px rgba(18, 35, 28, 0.18)",
-        "btn-brand":
-          "0 1px 2px rgba(10, 78, 56, 0.3), 0 6px 16px -6px rgba(15, 107, 76, 0.45)",
+        card: "9px 9px 16px rgba(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.6)",
+        "card-hover": "12px 12px 20px rgba(163,177,198,0.7), -12px -12px 20px rgba(255,255,255, 0.8)",
+        "btn-brand": "9px 9px 16px rgba(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.6)",
         glow: "0 0 0 1px rgba(15, 107, 76, 0.08), 0 12px 32px -8px rgba(15, 107, 76, 0.25)",
+        panel: "9px 9px 16px rgba(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.6)",
+        "panel-inset": "inset 5px 5px 10px rgba(163,177,198, 0.5), inset -5px -5px 10px rgba(255,255,255, 0.8)",
       },
       backgroundImage: {
         "grad-brand": "linear-gradient(135deg, #0F6B4C 0%, #0A4E38 100%)",

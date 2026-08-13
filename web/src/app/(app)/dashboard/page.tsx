@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Lightbulb } from "lucide-react";
 import { analyticsApi, goalsApi, transactionsApi, unwrapList } from "@/lib/api/resources";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { useLookups } from "@/lib/hooks/useLookups";
@@ -47,7 +48,7 @@ export default function DashboardPage() {
           <div className="card card-lift relative col-span-2 overflow-hidden px-6 py-6">
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/[0.07] via-transparent to-transparent dark:from-income/10"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/[0.03] via-transparent to-transparent dark:from-income/5"
             />
             <p className="relative text-sm font-medium text-ink-muted dark:text-ink-dark-muted">
               Bu oy jamg&apos;arma
@@ -69,9 +70,7 @@ export default function DashboardPage() {
             ) : null}
             {report.data.insights.length ? (
               <div className="relative mt-5 flex items-start gap-2.5 border-t border-line pt-4 text-sm text-ink-muted dark:border-line-dark dark:text-ink-dark-muted">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="mt-0.5 shrink-0 text-accent" aria-hidden>
-                  <path d="M9.5 18h5m-4.5 3h4M12 3a6.5 6.5 0 00-3.5 12c.6.4 1 1 1 1.7V17h5v-.3c0-.7.4-1.3 1-1.7A6.5 6.5 0 0012 3z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Lightbulb size={16} strokeWidth={1.5} className="mt-0.5 shrink-0 text-accent" aria-hidden />
                 <span>{report.data.insights.join(" ")}</span>
               </div>
             ) : null}
