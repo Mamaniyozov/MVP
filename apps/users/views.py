@@ -77,7 +77,7 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
         response = Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh)},
+            {"detail": "Muvaffaqiyatli kirdingiz."},
             status=status.HTTP_200_OK,
         )
         return set_auth_cookies(response, str(refresh.access_token), str(refresh))
@@ -189,7 +189,7 @@ class OTPVerifyView(APIView):
         user = profile.user
         refresh = RefreshToken.for_user(user)
         response = Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh)},
+            {"detail": "Muvaffaqiyatli kirdingiz."},
             status=status.HTTP_200_OK,
         )
         return set_auth_cookies(response, str(refresh.access_token), str(refresh))
@@ -232,6 +232,14 @@ class CookieTokenRefreshView(TokenRefreshView):
                     httponly=True,
                     samesite=cookie_settings.get('AUTH_COOKIE_SAMESITE', 'Lax'),
                 )
+            
+            # Remove tokens from JSON response body to enforce HttpOnly cookie usage
+            if 'access' in response.data:
+                del response.data['access']
+            if 'refresh' in response.data:
+                del response.data['refresh']
+            response.data['detail'] = "Token muvaffaqiyatli yangilandi."
+            
         return response
 
 

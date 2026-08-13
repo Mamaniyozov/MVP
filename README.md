@@ -59,6 +59,7 @@ docker-compose up -d --build
 - **`redis`**: Redis Cache on `:6380`
 - **`backend`**: Django API at `http://localhost:8000`
 - **`celery`**: Async task worker for Analytics and Reports
+- **`celery-beat`**: Async periodic task scheduler
 - **`web`**: Next.js Client at `http://localhost:3000`
 
 ### 3. Initialize Database
