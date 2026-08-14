@@ -27,6 +27,10 @@ class Budget(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'period', 'start_date']),
+            models.Index(fields=['user', 'category']),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'category', 'period', 'start_date'],

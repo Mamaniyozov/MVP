@@ -53,6 +53,12 @@ class Debt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'due_date']),
+            models.Index(fields=['user', 'is_paid_off']),
+        ]
+    
     def save(self, *args, **kwargs):
         # Payoff date hisoblash
         if not self.end_date and self.minimum_payment > 0:

@@ -154,11 +154,17 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttles.LoginRateThrottle",
+        "apps.core.throttles.RegisterRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "30/min",
-        "user": "300/min",
-        "auth": "5/min",
+        "anon": "100/hour",
+        "user": "1000/hour",
+        "login": "5/hour",
+        "register": "3/hour",
+        "otp_verify": "10/hour",
+        "debt_create": "20/hour",
+        "transaction_create": "100/hour",
     },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",

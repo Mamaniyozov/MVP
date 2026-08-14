@@ -46,8 +46,10 @@ class Transaction(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["user", "date"], name="txn_user_date_idx"),
-            models.Index(fields=["user", "category", "date"], name="txn_user_cat_date_idx"),
+            models.Index(fields=["user", "-date"], name="txn_user_date_idx"),
+            models.Index(fields=["user", "category", "-date"], name="txn_user_cat_date_idx"),
+            models.Index(fields=["user", "account", "-date"], name="txn_user_acc_date_idx"),
+            models.Index(fields=["is_recurring", "date"], name="txn_is_rec_date_idx"),
         ]
 
     def __str__(self):

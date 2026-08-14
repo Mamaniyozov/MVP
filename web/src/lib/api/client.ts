@@ -24,10 +24,30 @@ interface RetriableConfig extends InternalAxiosRequestConfig {
 }
 
 let refreshPromise: Promise<boolean> | null = null;
+let activeRequests = 0;
+
+const updateLoadingState = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("api_loading", { detail: { isLoading: activeRequests > 0 } }));
+  }
+};
+
+apiClient.interceptors.request.use((config) => {
+  activeRequests++;
+  updateLoadingState();
+  return config;
+});
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    activeRequests = Math.max(0, activeRequests - 1);
+    updateLoadingState();
+    return response;
+  },
   async (error: AxiosError) => {
+    activeRequests = Math.max(0, activeRequests - 1);
+    updateLoadingState();
+
     const original = error.config as RetriableConfig | undefined;
     const isAuthEndpoint = original?.url?.includes("/auth/");
 
@@ -46,6 +66,11 @@ apiClient.interceptors.response.use(
 
       tokenStore.clear();
       forceLogoutBus.emit();
+    } else if (error.response?.status !== 401 && typeof window !== "undefined") {
+      // Dispatch a generic error event for global toast/notification handling
+      window.dispatchEvent(new CustomEvent("api_error", { 
+        detail: { message: apiErrorMessage(error) } 
+      }));
     }
 
     return Promise.reject(error);

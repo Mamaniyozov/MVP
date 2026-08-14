@@ -81,3 +81,65 @@ The frontend (`web`) and backend (`backend`) are tightly integrated with a focus
 - **HttpOnly Cookies**: The authentication flow does not expose JWT tokens to `localStorage`. The backend sets `HttpOnly` cookies, preventing XSS attacks.
 - **Axios Configuration**: The Next.js client uses `withCredentials: true` in its Axios configuration.
 - **Automated Renewals**: Tokens are refreshed silently in the background when the `401` interceptor is triggered.
+
+---
+
+## 🚀 Production Deployment Guide
+
+Before deploying Hisob to a production server, ensure the following checklist is completed to guarantee maximum security, performance, and reliability.
+
+### 1. Environment & Secrets
+Configure your `.env.production` file completely, replacing all placeholders with strong random values. Ensure `DEBUG=False` and `ALLOWED_HOSTS` includes your domain (e.g. `hisob.uz`, `www.hisob.uz`).
+
+### 2. SSL/TLS Certificates
+Run Let's Encrypt with Certbot to secure all HTTP traffic:
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d hisob.uz -d www.hisob.uz
+sudo systemctl enable certbot.timer
+```
+
+### 3. Database Backups
+Automate your PostgreSQL database backups via cron jobs:
+```bash
+#!/bin/bash
+BACKUP_DIR="/backups/hisob"
+DATE=$(date +%Y%m%d_%H%M%S)
+CONTAINER_ID=$(docker ps -q -f name=finance_db)
+mkdir -p $BACKUP_DIR
+docker exec $CONTAINER_ID pg_dump -U finance_user finance_db > $BACKUP_DIR/backup_$DATE.sql
+find $BACKUP_DIR -name "backup_*.sql" -mtime +7 -delete
+# aws s3 cp $BACKUP_DIR/backup_$DATE.sql s3://hisob-backups/
+```
+
+### 4. CI/CD & GitHub Actions
+Set up GitHub Actions to automatically run `pytest` and code linting before SSHing into your production server to pull, rebuild, and restart the Docker containers.
+
+### 5. Performance Optimizations
+- **Database Pooling**: Set `CONN_MAX_AGE=600` in `DATABASES` settings.
+- **Query Optimization**: Use `select_related` and `prefetch_related` on your heavy viewsets (like Transactions) to avoid N+1 queries.
+- **Static Files**: Use `whitenoise.storage.CompressedManifestStaticFilesStorage`.
+
+### 6. Final Deployment Command
+```bash
+cd /opt/hisob
+git pull origin main
+docker-compose pull
+docker-compose up -d --build
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py collectstatic --noinput
+docker-compose restart
+```
+
+### 7. Security Audit
+- [x] JWT HttpOnly cookies
+- [x] Token blacklisting
+- [x] Rate limiting (e.g., login: 5/hour)
+- [x] Parameterized queries (Django ORM)
+- [x] CORS configured
+- [x] CSRF protection
+- [x] Health checks
+- [x] Container isolation
+- [ ] 2FA (TOTP) - **Future**
+- [ ] Row-level security (RLS) - **Future**
+- [ ] WAF (Cloudflare/AWS) - **Future**
