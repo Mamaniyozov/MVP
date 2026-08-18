@@ -37,14 +37,10 @@ export default function MFAPage() {
     setIsSubmitting(true);
     try {
       const res = await verifyMFA(token, tempToken);
-      if ("access" in res && res.access && res.refresh) {
-        completeLogin(mfaEmail || "", res.access, res.refresh);
-        sessionStorage.removeItem("mfa_temp_token");
-        sessionStorage.removeItem("mfa_email");
-        router.push("/dashboard");
-      } else {
-        setError("Token kutilmoqda, xatolik yuz berdi.");
-      }
+      completeLogin(mfaEmail || "");
+      sessionStorage.removeItem("mfa_temp_token");
+      sessionStorage.removeItem("mfa_email");
+      router.push("/dashboard");
     } catch (err) {
       setError(apiErrorMessage(err, "MFA kod noto'g'ri."));
     } finally {

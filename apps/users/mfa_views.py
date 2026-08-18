@@ -70,10 +70,12 @@ class MFAVerifyView(APIView):
                 # Coming from login flow, issue JWT
                 from rest_framework_simplejwt.tokens import RefreshToken
                 refresh = RefreshToken.for_user(user)
-                return Response(
-                    {"access": str(refresh.access_token), "refresh": str(refresh)},
+                from apps.users.views import set_auth_cookies
+                response = Response(
+                    {"detail": "Muvaffaqiyatli kirdingiz."},
                     status=status.HTTP_200_OK,
                 )
+                return set_auth_cookies(response, str(refresh.access_token), str(refresh))
 
             return Response({"detail": "MFA token verified successfully."}, status=status.HTTP_200_OK)
             

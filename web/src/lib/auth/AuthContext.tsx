@@ -15,7 +15,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<authApi.LoginResponse>;
-  completeLogin: (email: string, access: string, refresh: string) => void;
+  completeLogin: (email: string, access?: string, refresh?: string) => void;
   register: (email: string, password: string, password2: string) => Promise<void>;
   logout: () => void;
 }
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => forceLogoutBus.subscribe(logout), [logout]);
 
-  const completeLogin = useCallback((email: string, access: string, refresh: string) => {
+  const completeLogin = useCallback((email: string, access?: string, refresh?: string) => {
     tokenStore.set(access, refresh);
     localStorage.setItem(EMAIL_KEY, email);
     setState({ isAuthenticated: true, isLoading: false, email });
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    if (!res.mfa_required && res.access && res.refresh) {
+    if (!res.mfa_required) {
       completeLogin(email, res.access, res.refresh);
     }
     return res;

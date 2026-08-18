@@ -9,19 +9,26 @@ export const tokenStore = {
   // We keep empty methods to satisfy existing typescript usages
   // that haven't been fully refactored, or to allow mobile-web shared code.
   getAccess(): string | null {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hisob_is_auth") === "true" ? "cookie_auth" : null;
+    }
     return null;
   },
   getRefresh(): string | null {
     return null;
   },
-  set(_access: string, _refresh: string) {
-    // No-op for web
+  set(_access?: string, _refresh?: string) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hisob_is_auth", "true");
+    }
   },
   setAccess(_access: string) {
     // No-op for web
   },
   clear() {
-    // No-op for web (LogoutView clears cookies)
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("hisob_is_auth");
+    }
   },
 };
 

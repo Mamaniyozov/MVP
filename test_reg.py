@@ -1,0 +1,17 @@
+import urllib.request
+import json
+
+url = "http://localhost:8000/api/v1/auth/register/"
+data = json.dumps({
+    "email": "test3@example.com",
+    "password": "StrongPassword123!",
+    "password2": "StrongPassword123!"
+}).encode('utf-8')
+
+req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+try:
+    with urllib.request.urlopen(req) as f:
+        print(f.read().decode('utf-8'))
+except urllib.error.HTTPError as e:
+    print(e.code)
+    print(e.read().decode('utf-8'))

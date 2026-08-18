@@ -39,12 +39,8 @@ export default function PhoneLoginPage() {
     setIsSubmitting(true);
     try {
       const res = await verifyOTP(phone, otp);
-      if (res.access && res.refresh) {
-        completeLogin(phone, res.access, res.refresh);
-        router.push("/dashboard");
-      } else {
-        setError("Token kutilmoqda, xatolik yuz berdi.");
-      }
+      completeLogin(phone, res.access, res.refresh);
+      router.push("/dashboard");
     } catch (err) {
       setError(apiErrorMessage(err, "OTP kod noto'g'ri."));
     } finally {
